@@ -1,6 +1,13 @@
 import { FileUploadForm } from "@/components/upload-form";
 import { generateMeta } from "@/lib/utils";
 import React from "react";
+import {
+	ChartFileTransfer,
+	FolderListCards,
+	StorageStatusCard,
+	SummaryCards,
+	TableRecentFiles,
+} from "./components";
 
 export async function generateMetadata() {
 	return generateMeta({
@@ -19,15 +26,17 @@ const Page = () => {
 				</h1>
 				{/* <FileUploadDialog /> */}
 			</div>
-			{/* <SummaryCards /> */}
+			<SummaryCards />
 			<FileUploadForm />
 			<div className="mb-4 grid gap-4 lg:grid-cols-3">
-				<div className="lg:col-span-2">{/* <FolderListCards /> */}</div>
-				{/* <StorageStatusCard /> */}
+				<div className="lg:col-span-2">
+					<FolderListCards />
+				</div>
+				<StorageStatusCard />
 			</div>
 			<div className="gap-4 space-y-4 lg:grid lg:grid-cols-2 lg:space-y-0">
-				{/* <ChartFileTransfer /> */}
-				{/* <TableRecentFiles /> */}
+				<ChartFileTransfer />
+				<TableRecentFiles />
 			</div>
 		</div>
 	);
