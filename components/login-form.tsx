@@ -28,8 +28,8 @@ export function LoginForm({
 			const { error, data } = await supabase.auth.signInWithOAuth({
 				provider: "google",
 				options: {
-					// redirectTo: `${window.location.origin}/auth/oauth?next=/protected`,
-					redirectTo: "/",
+					redirectTo: `${window.location.origin}/auth/oauth?next=/dashboard`,
+					// redirectTo: "/",
 				},
 			});
 			console.log(error, data);
