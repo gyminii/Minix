@@ -17,7 +17,7 @@ const FileUploadForm = () => {
 	});
 
 	return (
-		<div className="w-[500px]">
+		<div className="w-full">
 			<Dropzone {...props}>
 				<DropzoneEmptyState />
 				<DropzoneContent />

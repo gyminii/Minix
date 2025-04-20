@@ -8,6 +8,7 @@ import {
 	SummaryCards,
 	TableRecentFiles,
 } from "./components";
+import { getCurrentUser } from "@/lib/get-current-user";
 
 export async function generateMetadata() {
 	return generateMeta({
@@ -17,7 +18,9 @@ export async function generateMetadata() {
 		canonical: "/file-manager",
 	});
 }
-const Page = () => {
+const Page = async () => {
+	const user = await getCurrentUser();
+	console.log(user);
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-row items-center justify-between">
@@ -26,8 +29,12 @@ const Page = () => {
 				</h1>
 				{/* <FileUploadDialog /> */}
 			</div>
-			<SummaryCards />
 			<FileUploadForm />
+
+			<SummaryCards />
+			<h3 className="text-lg font-bold tracking-tight lg:text-xl">
+				Recently added folders
+			</h3>
 			<div className="mb-4 grid gap-4 lg:grid-cols-3">
 				<div className="lg:col-span-2">
 					<FolderListCards />
@@ -35,7 +42,6 @@ const Page = () => {
 				<StorageStatusCard />
 			</div>
 			<div className="gap-4 space-y-4 lg:grid lg:grid-cols-2 lg:space-y-0">
-				<ChartFileTransfer />
 				<TableRecentFiles />
 			</div>
 		</div>
