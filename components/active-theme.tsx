@@ -47,50 +47,54 @@ export function ActiveThemeProvider({
 		const body = document.body;
 
 		setThemeCookie("theme_radius", theme.radius);
-		body.setAttribute("data-theme-radius", theme.radius);
-
-		if (theme.radius !== DEFAULT_THEME.radius) {
-			setThemeCookie("theme_preset", theme.radius);
-			body.setAttribute("data-theme-radius", theme.radius);
-		} else {
-			setThemeCookie("theme_preset", null);
-			body.removeAttribute("data-theme-radius");
-		}
-
-		if (theme.preset != DEFAULT_THEME.preset) {
-			setThemeCookie("theme_preset", theme.preset);
-			body.setAttribute("data-theme-preset", theme.preset);
-		} else {
-			setThemeCookie("theme_preset", null);
-			body.removeAttribute("data-theme-preset");
-		}
-
+		setThemeCookie("theme_preset", theme.preset);
 		setThemeCookie("theme_content_layout", theme.contentLayout);
-		body.setAttribute("data-theme-content-layout", theme.contentLayout);
+		setThemeCookie("theme_scale", theme.scale);
+		setThemeCookie("theme_chart_preset", theme.chartPreset);
+		setThemeCookie("theme_font", theme.font);
+		body.setAttribute("data-theme-radius", theme.radius);
+		// if (theme.radius !== DEFAULT_THEME.radius) {
+		// 	setThemeCookie("theme_preset", theme.radius);
+		// 	body.setAttribute("data-theme-radius", theme.radius);
+		// } else {
+		// 	setThemeCookie("theme_preset", null);
+		// 	body.removeAttribute("data-theme-radius");
+		// }
 
-		if (theme.scale != "none") {
-			setThemeCookie("theme_scale", theme.scale);
-			body.setAttribute("data-theme-scale", theme.scale);
-		} else {
-			setThemeCookie("theme_scale", null);
-			body.removeAttribute("data-theme-scale");
-		}
+		// if (theme.preset != DEFAULT_THEME.preset) {
+		// 	setThemeCookie("theme_preset", theme.preset);
+		// 	body.setAttribute("data-theme-preset", theme.preset);
+		// } else {
+		// 	setThemeCookie("theme_preset", null);
+		// 	body.removeAttribute("data-theme-preset");
+		// }
 
-		if (theme.chartPreset != DEFAULT_THEME.chartPreset) {
-			setThemeCookie("theme_chart_preset", theme.chartPreset);
-			body.setAttribute("data-theme-chart-preset", theme.chartPreset);
-		} else {
-			setThemeCookie("theme_chart_preset", null);
-			body.removeAttribute("data-theme-chart-preset");
-		}
+		// setThemeCookie("theme_content_layout", theme.contentLayout);
+		// body.setAttribute("data-theme-content-layout", theme.contentLayout);
 
-		if (theme.font != "default") {
-			setThemeCookie("theme_font", theme.font);
-			body.setAttribute("data-theme-font", theme.font);
-		} else {
-			setThemeCookie("theme_font", null);
-			body.removeAttribute("data-theme-font");
-		}
+		// if (theme.scale != "none") {
+		// 	setThemeCookie("theme_scale", theme.scale);
+		// 	body.setAttribute("data-theme-scale", theme.scale);
+		// } else {
+		// 	setThemeCookie("theme_scale", null);
+		// 	body.removeAttribute("data-theme-scale");
+		// }
+
+		// if (theme.chartPreset != DEFAULT_THEME.chartPreset) {
+		// 	setThemeCookie("theme_chart_preset", theme.chartPreset);
+		// 	body.setAttribute("data-theme-chart-preset", theme.chartPreset);
+		// } else {
+		// 	setThemeCookie("theme_chart_preset", null);
+		// 	body.removeAttribute("data-theme-chart-preset");
+		// }
+
+		// if (theme.font != "default") {
+		// 	setThemeCookie("theme_font", theme.font);
+		// 	body.setAttribute("data-theme-font", theme.font);
+		// } else {
+		// 	setThemeCookie("theme_font", null);
+		// 	body.removeAttribute("data-theme-font");
+		// }
 	}, [
 		theme.preset,
 		theme.radius,

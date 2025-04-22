@@ -26,7 +26,7 @@ export function generateMeta({
 	return {
 		title: `${title} - Shadcn UI Kit`,
 		description: description,
-		// metadataBase: new URL(`${process.env.BASE_URL}`),
+		metadataBase: new URL(`${process.env.BASE_URL}`),
 		alternates: {
 			canonical: `/dashboard${canonical}`,
 		},

@@ -9,6 +9,7 @@ import {
 	type PropsWithChildren,
 	useCallback,
 	useContext,
+	useEffect,
 } from "react";
 
 export const formatBytes = (
@@ -87,8 +88,16 @@ const DropzoneContent = ({ className }: { className?: string }) => {
 		maxFiles,
 		isSuccess,
 	} = useDropzoneContext();
-
+	console.log(successes);
 	const exceedMaxFiles = files.length > maxFiles;
+	const handleSubmitFiles = useCallback(
+		async () => await onUpload(),
+		[onUpload]
+	);
+	useEffect(() => {
+		if (!isSuccess && !successes) return;
+		console.log("after issucces", successes);
+	}, [isSuccess, successes]);
 
 	const handleRemoveFile = useCallback(
 		(fileName: string) => {
@@ -96,7 +105,6 @@ const DropzoneContent = ({ className }: { className?: string }) => {
 		},
 		[files, setFiles]
 	);
-	console.log(files, onUpload);
 	if (isSuccess) {
 		return (
 			<div
@@ -198,9 +206,7 @@ const DropzoneContent = ({ className }: { className?: string }) => {
 				<div className="mt-2">
 					<Button
 						variant="outline"
-						onClick={() => {
-							onUpload();
-						}}
+						onClick={handleSubmitFiles}
 						disabled={files.some((file) => file.errors.length !== 0) || loading}
 					>
 						{loading ? (

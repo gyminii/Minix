@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -11,6 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({
 	className,
@@ -28,8 +29,7 @@ export function LoginForm({
 			const { error, data } = await supabase.auth.signInWithOAuth({
 				provider: "google",
 				options: {
-					redirectTo: `${window.location.origin}/auth/oauth?next=/dashboard`,
-					// redirectTo: "/",
+					redirectTo: `${window.location.origin}/auth/oauth?next=/`,
 				},
 			});
 			console.log(error, data);

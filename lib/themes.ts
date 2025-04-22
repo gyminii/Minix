@@ -2,7 +2,7 @@ export const DEFAULT_THEME = {
 	preset: "lavender-dream",
 	radius: "sm",
 	scale: "none",
-	font: "default",
+	font: "poppins",
 	chartPreset: "default",
 	contentLayout: "full",
 } as const;

@@ -12,10 +12,9 @@ const FileUploadForm = () => {
 		bucketName: "minix",
 		path: "files",
 		allowedMimeTypes: ["image/*"],
-		maxFiles: 2,
+		maxFiles: 5,
 		maxFileSize: 1000 * 1000 * 10, // 10MB,
 	});
-
 	return (
 		<div className="w-full">
 			<Dropzone {...props}>

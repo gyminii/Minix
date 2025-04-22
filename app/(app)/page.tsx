@@ -7,8 +7,8 @@ import {
 	StorageStatusCard,
 	SummaryCards,
 	TableRecentFiles,
-} from "./components";
-import { getCurrentUser } from "@/lib/get-current-user";
+} from "../components";
+import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata() {
 	return generateMeta({
@@ -19,8 +19,6 @@ export async function generateMetadata() {
 	});
 }
 const Page = async () => {
-	const user = await getCurrentUser();
-	console.log(user);
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-row items-center justify-between">
