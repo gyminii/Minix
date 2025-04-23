@@ -126,7 +126,8 @@ export function FileUploadDialog({
 	onUpload,
 }: FileUploadDropzoneProps) {
 	const { mutate: uploadFiles, isPending } = useUploadFiles();
-	const { folderId } = useParams<{ folderId: string }>();
+	const { path } = useParams();
+	const folderId = path ? path[1] : null;
 
 	const {
 		control,

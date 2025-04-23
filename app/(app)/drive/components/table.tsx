@@ -60,6 +60,7 @@ const Table = ({
 		// Create a channel for real-time updates
 		const channel = supabase
 			.channel("drive-changes")
+
 			.on(
 				"postgres_changes",
 				{
@@ -91,10 +92,10 @@ const Table = ({
 			.on(
 				"postgres_changes",
 				{
-					event: "INSERT",
+					event: "*",
 					schema: "public",
 					table: "files",
-					filter: folderId ? `folder_id=eq.${folderId}` : "folder_id=is.null",
+					// filter: folderId ? `folder_id=eq.${folderId}` : "folder_id=is.null",
 				},
 				(payload) => {
 					console.log("New file uploaded:", payload.new);
@@ -168,7 +169,6 @@ const Table = ({
 			console.log("File clicked:", entry);
 		}
 	};
-	console.log(entries);
 	return (
 		<Card>
 			<CardHeader>
@@ -226,7 +226,57 @@ const Table = ({
 												<span>Share</span>
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={async () => {
+													// Show confirmation dialog
+													console.log(entry);
+													if (
+														!confirm(
+															`Are you sure you want to delete "${entry.name}"?`
+														)
+													) {
+														return;
+													}
+
+													try {
+														// Call the delete API endpoint
+														const response = await fetch("/api/files", {
+															method: "DELETE",
+															headers: {
+																"Content-Type": "application/json",
+															},
+															body: JSON.stringify({ fileIds: [entry.id] }),
+														});
+
+														const result = await response.json();
+
+														if (!response.ok) {
+															throw new Error(
+																result.error || "Failed to delete file"
+															);
+														}
+
+														// Show success toast
+														// toast({
+														// 	title: "File deleted",
+														// 	description: `"${entry.name}" has been deleted successfully.`,
+														// });
+
+														// Refresh the UI
+														console.log("REFRESHING~~");
+														router.refresh();
+													} catch (error) {
+														console.error("Error deleting file:", error);
+
+														// Show error toast
+														// toast({
+														// 	title: "Error",
+														// 	description: (error as Error).message,
+														// 	variant: "destructive",
+														// });
+													}
+												}}
+											>
 												<Trash2 />
 												<span>Delete</span>
 											</DropdownMenuItem>

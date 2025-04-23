@@ -24,6 +24,7 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
+import { useState } from "react";
 
 const formSchema = z.object({
 	name: z.string().min(2, {
@@ -34,7 +35,9 @@ const formSchema = z.object({
 const CreateFolderDialog = () => {
 	// Get the current folder ID from the URL params
 	const params = useParams();
-	const { folderId } = params;
+	const { path } = params;
+	const folderId = path ? path[1] : null;
+	const [open, setOpen] = useState(false);
 	const form = useForm<z.infer<typeof formSchema>>({
 		defaultValues: {
 			name: "",
@@ -43,7 +46,6 @@ const CreateFolderDialog = () => {
 	});
 
 	const { handleSubmit, control, reset } = form;
-
 	const { mutate: createFolderMutate, isPending } = useMutation({
 		mutationFn: async (values: z.infer<typeof formSchema>) => {
 			const res = await fetch("/api/folders", {
@@ -53,7 +55,7 @@ const CreateFolderDialog = () => {
 				},
 				body: JSON.stringify({
 					...values,
-					parent_id: folderId ?? null, // Include the parent_id from URL params
+					parent_id: folderId,
 				}),
 			});
 			const result = await res.json();
@@ -64,6 +66,7 @@ const CreateFolderDialog = () => {
 		},
 		onSuccess: (data, variables, context) => {
 			reset();
+			setOpen(false);
 		},
 	});
 
@@ -71,7 +74,7 @@ const CreateFolderDialog = () => {
 		createFolderMutate(values);
 
 	return (
-		<Dialog>
+		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				<Button variant="outline">Create</Button>
 			</DialogTrigger>

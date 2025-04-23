@@ -43,7 +43,6 @@ export default async function RootLayout({
 				value,
 			])
 	);
-	console.log("layout");
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body

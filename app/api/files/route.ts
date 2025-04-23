@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET(req: Request) {}
-
 export async function POST(req: Request) {
 	try {
 		const client = await createClient();
@@ -21,20 +19,9 @@ export async function POST(req: Request) {
 		const formData = await req.formData();
 		const files = formData.getAll("files") as File[];
 		const folderId = formData.get("folder_id") as string | null;
-		console.log("formdata: ", formData);
 		if (!files || files.length === 0) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
 		}
-
-		// Log the raw files to see what we're working with
-		console.log(
-			"Raw files:",
-			files.map((file) => ({
-				name: file.name,
-				type: file.type,
-				size: file.size,
-			}))
-		);
 
 		const uploads = await Promise.all(
 			files.map(async (file) => {
@@ -111,7 +98,7 @@ export async function POST(req: Request) {
 			const dbRecords = successful.map((meta) => meta);
 
 			// Insert metadata into database
-			const { data: insertData, error: insertError } = await client
+			const { error: insertError } = await client
 				.from("files")
 				.insert(dbRecords)
 				.select();
@@ -136,6 +123,139 @@ export async function POST(req: Request) {
 		console.error("Server error:", error);
 		return NextResponse.json(
 			{ error: "Internal error", details: String(error) },
+			{ status: 500 }
+		);
+	}
+}
+export async function DELETE(req: Request) {
+	try {
+		// Parse the request body to get the array of file IDs
+		const { fileIds } = await req.json();
+
+		// Validate input
+		if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+			return NextResponse.json(
+				{ error: "Invalid input: fileIds must be a non-empty array" },
+				{ status: 400 }
+			);
+		}
+
+		// Initialize Supabase client
+		const supabase = await createClient();
+
+		// Get the current user to ensure they can only delete their own files
+		const {
+			data: { user },
+			error: userError,
+		} = await supabase.auth.getUser();
+
+		if (userError || !user) {
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		}
+		const userId = String(user.id);
+		// Step 1: Get file paths for all files to be deleted
+		const { data: filesToDelete, error: fetchError } = await supabase
+			.from("files")
+			.select("id, path, name")
+			.in("id", fileIds)
+			.eq("user_id", userId); // Security check: only delete own files
+
+		if (fetchError) {
+			console.error("Error fetching files to delete:", fetchError);
+			return NextResponse.json(
+				{ error: "Failed to fetch files", details: fetchError.message },
+				{ status: 500 }
+			);
+		}
+
+		// If no files found or fewer files than requested, some might not exist or belong to the user
+		if (!filesToDelete || filesToDelete.length === 0) {
+			return NextResponse.json(
+				{
+					error:
+						"No files found or you do not have permission to delete these files",
+				},
+				{ status: 404 }
+			);
+		}
+
+		// If some files weren't found, inform the user
+		if (filesToDelete.length < fileIds.length) {
+			console.warn(
+				`Only ${filesToDelete.length} out of ${fileIds.length} files were found and will be deleted`
+			);
+		}
+
+		// Step 2: Delete files from storage bucket
+		const storageResults = [];
+		const storageErrors = [];
+
+		for (const file of filesToDelete) {
+			if (file.path) {
+				const { error: storageError } = await supabase.storage
+					.from("files") // Replace with your actual bucket name if different
+					.remove([file.path]);
+
+				if (storageError) {
+					console.error(
+						`Error deleting file ${file.id} from storage:`,
+						storageError
+					);
+					storageErrors.push({
+						id: file.id,
+						name: file.name,
+						error: storageError.message,
+					});
+				} else {
+					storageResults.push({
+						id: file.id,
+						name: file.name,
+						path: file.path,
+					});
+				}
+			}
+		}
+
+		// Step 3: Delete files from the database
+		const { error: deleteError } = await supabase
+			.from("files")
+			.delete()
+			.in(
+				"id",
+				filesToDelete.map((file) => file.id)
+			);
+
+		if (deleteError) {
+			console.error("Error deleting files from database:", deleteError);
+			return NextResponse.json(
+				{
+					error: "Failed to delete files from database",
+					details: deleteError.message,
+					storageResults:
+						storageResults.length > 0 ? storageResults : undefined,
+					storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
+				},
+				{ status: 500 }
+			);
+		}
+
+		// Return success response with details
+		return NextResponse.json({
+			message: `Successfully deleted ${filesToDelete.length} files`,
+			deletedCount: filesToDelete.length,
+			deletedFiles: filesToDelete.map((file) => ({
+				id: file.id,
+				name: file.name,
+			})),
+			storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
+		});
+	} catch (error) {
+		console.error("Unexpected error in DELETE handler:", error);
+		return NextResponse.json(
+			{
+				error: "An unexpected error occurred",
+				details: (error as Error).message,
+			},
 			{ status: 500 }
 		);
 	}

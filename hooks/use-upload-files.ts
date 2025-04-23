@@ -18,7 +18,7 @@ export function useUploadFiles() {
 			files.forEach((file: File) => {
 				formData.append("files", file);
 			});
-			console.log(formData.getAll("files"));
+			console.log(folderId, formData.get("folder_id"));
 
 			// Add folder ID if provided
 			if (folderId) formData.append("folder_id", folderId);
