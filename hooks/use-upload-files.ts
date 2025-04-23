@@ -1,17 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 
-interface CustomFile extends File {
-	relativePath?: string;
-	uploaded?: boolean;
-}
-
 export function useUploadFiles() {
 	return useMutation({
 		mutationFn: async ({
 			files,
 			folderId,
 		}: {
-			files: CustomFile[];
+			files: File[];
 			folderId?: string;
 		}) => {
 			const formData = new FormData();
@@ -20,10 +15,10 @@ export function useUploadFiles() {
 			console.log("Files to upload:", files);
 
 			// Append each file to the FormData
-			files.forEach((file) => {
-				console.log("each file: ", file);
+			files.forEach((file: File) => {
 				formData.append("files", file);
 			});
+			console.log(formData.getAll("files"));
 
 			// Add folder ID if provided
 			if (folderId) formData.append("folder_id", folderId);

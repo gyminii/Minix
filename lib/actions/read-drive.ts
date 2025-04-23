@@ -1,26 +1,27 @@
 "use server";
 
 import { createClient } from "../supabase/server";
+import { DriveEntry, File, Folder } from "../types/type";
 
-// Types
-type FileNode = {
-	id: string;
-	name: string;
-	created_at: string;
-	size: number;
-	type: string; // MIME type
-};
+// // Types
+// type FileNode = {
+// 	id: string;
+// 	name: string;
+// 	created_at: string;
+// 	size: number;
+// 	type: string; // MIME type
+// };
 
-type FolderEntry = {
-	id: string;
-	name: string;
-	created_at: string;
-	type: "folder";
-};
+// type FolderEntry = {
+// 	id: string;
+// 	name: string;
+// 	created_at: string;
+// 	type: "folder";
+// };
 
-type FileEntry = FileNode & { type: "file" };
+// type FileEntry = FileNode & { type: "file" };
 
-type Entry = FolderEntry | FileEntry;
+// type Entry = FolderEntry | FileEntry;
 /**
  * Creating folders
  * @param param0 name, parent folder
@@ -30,7 +31,7 @@ export const readDrive = async ({
 	folderId = null,
 }: {
 	folderId?: string | null;
-} = {}): Promise<Entry[]> => {
+} = {}): Promise<DriveEntry[]> => {
 	const supabase = await createClient();
 	const {
 		data: { user },
@@ -41,52 +42,46 @@ export const readDrive = async ({
 	if (!user) throw new Error("User not authenticated");
 
 	const userId = user.id;
-	const allEntries: Entry[] = [];
 
-	const readAll = async (parentId: string | null) => {
-		const foldersQuery = supabase
-			.from("folders")
-			.select("id, name, created_at")
-			.eq("user_id", userId);
+	// Query for folders
+	const foldersQuery = supabase
+		.from("folders")
+		.select("id, name, created_at")
+		.eq("user_id", userId);
 
-		const filesQuery = supabase
-			.from("files")
-			.select("id, name, created_at, size, type")
-			.eq("user_id", userId);
+	// Query for files
+	const filesQuery = supabase
+		.from("files")
+		.select("id, name, created_at, size, type, url")
+		.eq("user_id", userId);
 
-		if (parentId === null) {
-			foldersQuery.is("parent_id", null);
-			filesQuery.is("folder_id", null);
-		} else {
-			foldersQuery.eq("parent_id", parentId);
-			filesQuery.eq("folder_id", parentId);
-		}
+	// Apply parent/folder filter based on folderId
+	if (folderId === null) {
+		foldersQuery.is("parent_id", null);
+		filesQuery.is("folder_id", null);
+	} else {
+		foldersQuery.eq("parent_id", folderId);
+		filesQuery.eq("folder_id", folderId);
+	}
 
-		const [foldersRes, filesRes] = await Promise.all([
-			foldersQuery,
-			filesQuery,
-		]);
+	// Execute both queries in parallel
+	const [foldersRes, filesRes] = await Promise.all([foldersQuery, filesQuery]);
 
-		if (foldersRes.error || filesRes.error) {
-			throw foldersRes.error || filesRes.error;
-		}
+	if (foldersRes.error || filesRes.error) {
+		throw foldersRes.error || filesRes.error;
+	}
 
-		const folderEntries: FolderEntry[] = foldersRes.data.map((f) => ({
-			...f,
-			type: "folder",
-		}));
-		const fileEntries: FileEntry[] = filesRes.data.map((f) => ({
-			...f,
-			type: "file",
-		}));
+	// Map the results to the expected format
+	const folderEntries: Folder[] = foldersRes.data.map((f) => ({
+		...f,
+		type: "folder",
+	}));
 
-		allEntries.push(...folderEntries, ...fileEntries);
+	const fileEntries: File[] = filesRes.data.map((f) => ({
+		...f,
+		type: "file",
+	}));
 
-		for (const folder of foldersRes.data) {
-			await readAll(folder.id);
-		}
-	};
-
-	await readAll(folderId);
-	return allEntries;
+	// Return only the direct children of the specified folder (or root)
+	return [...folderEntries, ...fileEntries];
 };

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 					const filePath = `files/${Date.now()}-${file.name}`;
 
 					// Upload file to Supabase Storage in the "files" folder
-					const { data: uploadData, error: uploadError } = await client.storage
+					const { error: uploadError } = await client.storage
 						.from("minix")
 						.upload(filePath, file, {
 							cacheControl: "3600",
@@ -69,9 +69,9 @@ export async function POST(req: Request) {
 					}
 
 					// Get public URL for the uploaded file
-					const { data: urlData } = client.storage
+					const { data } = await client.storage
 						.from("minix")
-						.getPublicUrl(filePath);
+						.createSignedUrl(filePath, 604800);
 
 					// Return complete metadata object
 					return {
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
 						type: file.type,
 						folder_id: folderId || null,
 						user_id: user.id,
-						publicUrl: urlData.publicUrl,
+						url: data ? data.signedUrl : null,
 					};
 				} catch (err) {
 					console.error("Error processing file:", err);
@@ -107,13 +107,8 @@ export async function POST(req: Request) {
 		const failed = uploads.filter((upload) => upload.error || !upload.name);
 
 		if (successful.length > 0) {
-			console.log("Successful uploads:", successful.length);
-
 			// Prepare data for database insertion
-			const dbRecords = successful.map(({ publicUrl, ...meta }) => meta);
-
-			// Log what we're inserting
-			console.log("Inserting records:", JSON.stringify(dbRecords, null, 2));
+			const dbRecords = successful.map((meta) => meta);
 
 			// Insert metadata into database
 			const { data: insertData, error: insertError } = await client
@@ -128,12 +123,10 @@ export async function POST(req: Request) {
 					{ status: 500 }
 				);
 			}
-
-			console.log("Inserted data:", insertData);
 		}
 
 		return NextResponse.json({
-			success: successful.map((f) => ({ name: f.name, url: f.publicUrl })),
+			success: successful.map((f) => ({ name: f.name, url: f.url })),
 			failed: failed.map((f) => ({
 				name: f.name || "Unknown",
 				error: f.error,

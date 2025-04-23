@@ -2,6 +2,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "../ui/button";
@@ -23,7 +24,6 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
-// import { createFolder } from "@/lib/suxpabase/authorized/folder/api";
 
 const formSchema = z.object({
 	name: z.string().min(2, {
@@ -32,6 +32,9 @@ const formSchema = z.object({
 });
 
 const CreateFolderDialog = () => {
+	// Get the current folder ID from the URL params
+	const params = useParams();
+	const { folderId } = params;
 	const form = useForm<z.infer<typeof formSchema>>({
 		defaultValues: {
 			name: "",
@@ -48,7 +51,10 @@ const CreateFolderDialog = () => {
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(values),
+				body: JSON.stringify({
+					...values,
+					parent_id: folderId ?? null, // Include the parent_id from URL params
+				}),
 			});
 			const result = await res.json();
 			if (!res.ok) {
@@ -60,8 +66,10 @@ const CreateFolderDialog = () => {
 			reset();
 		},
 	});
+
 	const onSubmit = (values: z.infer<typeof formSchema>) =>
 		createFolderMutate(values);
+
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
@@ -71,7 +79,9 @@ const CreateFolderDialog = () => {
 				<DialogHeader>
 					<DialogTitle>Create Folder</DialogTitle>
 					<DialogDescription>
-						Enter a name for creating folders
+						{folderId
+							? "Create a subfolder in the current folder"
+							: "Create a new top-level folder"}
 					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
@@ -91,7 +101,7 @@ const CreateFolderDialog = () => {
 						/>
 						<DialogFooter>
 							<Button type="submit" disabled={isPending}>
-								{isPending && <Loader2 className="animate-spin" />}
+								{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 								Create
 							</Button>
 						</DialogFooter>

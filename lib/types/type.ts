@@ -1,4 +1,4 @@
-export type File = {
+type File = {
 	id: string;
 	name: string;
 	created_at: string;
@@ -6,11 +6,13 @@ export type File = {
 	type: string; // MIME type
 };
 
-export type Folder = {
+type Folder = {
 	id: string;
 	name: string;
 	created_at: string;
 	type: "folder";
 };
 
-export type DriveEntry = Folder | (File & { type: "file" });
+type DriveEntry = Folder | File;
+
+export type { File, Folder, DriveEntry };

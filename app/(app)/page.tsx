@@ -1,14 +1,11 @@
 import { FileUploadForm } from "@/components/upload-form";
 import { generateMeta } from "@/lib/utils";
-import React from "react";
 import {
-	ChartFileTransfer,
 	FolderListCards,
 	StorageStatusCard,
 	SummaryCards,
 	TableRecentFiles,
 } from "../components";
-import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata() {
 	return generateMeta({

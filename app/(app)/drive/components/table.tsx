@@ -1,13 +1,16 @@
 "use client";
 import { format } from "date-fns";
 import {
-	ChevronRight,
 	Download,
+	File,
+	Folder,
 	MoreHorizontal,
 	Share2,
 	Trash2,
 } from "lucide-react";
 
+import { FileUploadDialog } from "@/app/components";
+import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -31,37 +34,141 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { DriveEntry } from "@/lib/types/type";
-import Link from "next/link";
-import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { FileUploadForm } from "@/components/upload-form";
-import { FileUploadDialog } from "@/app/components";
+import { DriveEntry } from "@/lib/types/type";
 import { useRouter } from "next/navigation";
-import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
-
-const Table = ({ data }: { data: DriveEntry[] }) => {
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+const getEntryIcon = (entry: DriveEntry) => {
+	if (entry.type === "folder") {
+		return <Folder className="h-4 w-4 mr-2" />;
+	}
+	return <File className="h-4 w-4 mr-2" />;
+};
+const Table = ({
+	initialData = [],
+	folderId,
+}: {
+	initialData: DriveEntry[];
+	folderId?: string | null;
+}) => {
+	const [entries, setEntries] = useState<DriveEntry[]>(initialData);
 	const supabase = createClient();
 	const router = useRouter();
+	// Set up real-time subscription
 	useEffect(() => {
-		supabase
-			.channel("drive")
+		// Create a channel for real-time updates
+		const channel = supabase
+			.channel("drive-changes")
 			.on(
 				"postgres_changes",
-				{ event: "INSERT", schema: "public", table: "folders" },
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "folders",
+					filter: folderId ? `parent_id=eq.${folderId}` : "parent_id=is.null",
+				},
 				(payload) => {
-					console.log("Drive changes", payload.new);
+					console.log("New folder created:", payload.new);
+					// Add the new folder to state if it belongs in the current view
+					const newFolder = payload.new as any;
+					if (
+						(folderId === null && newFolder.parent_id === null) ||
+						(folderId && newFolder.parent_id === folderId)
+					) {
+						const folderEntry: DriveEntry = {
+							id: newFolder.id,
+							name: newFolder.name,
+							created_at: newFolder.created_at,
+							type: "folder",
+						};
+
+						setEntries((prev) => [...prev, folderEntry]);
+						toast.success(`Folder "${newFolder.name}" created`);
+					}
 				}
 			)
 			.on(
 				"postgres_changes",
-				{ event: "INSERT", schema: "public", table: "files" },
-				async (payload) => {
-					console.log(payload.new);
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "files",
+					filter: folderId ? `folder_id=eq.${folderId}` : "folder_id=is.null",
+				},
+				(payload) => {
+					console.log("New file uploaded:", payload.new);
+					// Add the new file to state if it belongs in the current view
+					const newFile = payload.new as any;
+					if (
+						(folderId === null && newFile.folder_id === null) ||
+						(folderId && newFile.folder_id === folderId)
+					) {
+						const fileEntry: DriveEntry = {
+							id: newFile.id,
+							name: newFile.name,
+							created_at: newFile.created_at,
+							size: newFile.size,
+							type: "file",
+						};
+
+						setEntries((prev) => [...prev, fileEntry]);
+						toast.success(`File "${newFile.name}" uploaded`);
+					}
 				}
 			)
-			.subscribe();
-	}, [supabase]);
+			.on(
+				"postgres_changes",
+				{ event: "DELETE", schema: "public", table: "folders" },
+				(payload) => {
+					console.log("Folder deleted:", payload.old);
+					// Remove the folder from state
+					setEntries((prev) =>
+						prev.filter(
+							(entry) =>
+								!(
+									entry.type === "folder" &&
+									entry.id === (payload.old as any).id
+								)
+						)
+					);
+					toast.info(`Folder deleted`);
+				}
+			)
+			.on(
+				"postgres_changes",
+				{ event: "DELETE", schema: "public", table: "files" },
+				(payload) => {
+					console.log("File deleted:", payload.old);
+					// Remove the file from state
+					setEntries((prev) =>
+						prev.filter(
+							(entry) =>
+								!(entry.type === "file" && entry.id === (payload.old as any).id)
+						)
+					);
+					toast.info(`File deleted`);
+				}
+			)
+			.subscribe((status) => {
+				console.log("Subscription status:", status);
+			});
+
+		// Clean up subscription on unmount
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	}, [supabase, folderId]);
+
+	const handleEntryClick = (entry: DriveEntry) => {
+		if (entry.type === "folder") {
+			router.push(`/drive/folders/${entry.id}`);
+		} else {
+			// Handle file click - perhaps open a preview
+			console.log("File clicked:", entry);
+		}
+	};
+	console.log(entries);
 	return (
 		<Card>
 			<CardHeader>
@@ -84,28 +191,23 @@ const Table = ({ data }: { data: DriveEntry[] }) => {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{data.map((entity) => (
-							<TableRow
-								key={entity.id}
-								onClick={() => router.push(`/drive/folders/${entity.id}`)}
-							>
+						{entries.map((entry) => (
+							<TableRow key={entry.id}>
 								<TableCell className="font-medium">
-									<Link
-										href="#"
-										className="text-muted-foreground hover:text-primary flex items-center space-x-2 hover:underline"
+									<div
+										className="flex items-center cursor-pointer hover:underline"
+										onClick={() => handleEntryClick(entry)}
 									>
-										{/* {getFileIcon(file.type)} */}
-										<span>{entity.name}</span>
-									</Link>
+										{getEntryIcon(entry)}
+										<span>{entry.name}</span>
+									</div>
 								</TableCell>
 								{/* {entity?.size && (
 									<TableCell>{formatFileSize(file.size)}</TableCell>
 								)} */}
 								<TableCell />
 
-								<TableCell>
-									{format(entity.created_at, "MMM d, yyyy")}
-								</TableCell>
+								<TableCell>{format(entry.created_at, "MMM d, yyyy")}</TableCell>
 								<TableCell className="text-right">
 									<DropdownMenu>
 										<DropdownMenuTrigger asChild>

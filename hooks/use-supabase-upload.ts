@@ -71,7 +71,6 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [errors, setErrors] = useState<{ name: string; message: string }[]>([]);
 	const [successes, setSuccesses] = useState<string[]>([]);
-	console.log(files);
 	const isSuccess = useMemo(() => {
 		if (errors.length === 0 && successes.length === 0) {
 			return false;
@@ -133,6 +132,8 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
 		console.log("PATH: ", path);
 		const responses = await Promise.all(
 			filesToUpload.map(async (file) => {
+				console.log("KEYL:", JSON.stringify(file, null, 4));
+
 				const { error } = await supabase.storage
 					.from(bucketName)
 					.upload(!!path ? `${path}/${file.name}` : file.name, file, {
