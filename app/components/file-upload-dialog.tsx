@@ -33,18 +33,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useUploadFiles } from "@/hooks/use-upload-files";
 
-interface Preview extends File {
-	preview: string;
-	progress: number;
-	id: string;
-	uploaded?: boolean;
-	error?: string;
-	name: string;
-	size: number;
-	type: string;
-	lastModified: number;
-}
-
 interface FileUploadDropzoneProps {
 	maxFiles?: number;
 	maxSize?: number;
@@ -263,7 +251,7 @@ export function FileUploadDialog({
 				} else {
 					// Use the upload mutation
 					uploadFiles(
-						{ files: data.files, folderId },
+						{ files: data.files, folderId: folderId },
 						{
 							onSuccess: (res) => {
 								console.log("Upload success:", res.success);

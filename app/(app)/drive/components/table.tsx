@@ -230,50 +230,52 @@ const Table = ({
 												onClick={async () => {
 													// Show confirmation dialog
 													console.log(entry);
-													if (
-														!confirm(
-															`Are you sure you want to delete "${entry.name}"?`
-														)
-													) {
-														return;
-													}
-
-													try {
-														// Call the delete API endpoint
-														const response = await fetch("/api/files", {
-															method: "DELETE",
-															headers: {
-																"Content-Type": "application/json",
-															},
-															body: JSON.stringify({ fileIds: [entry.id] }),
-														});
-
-														const result = await response.json();
-
-														if (!response.ok) {
-															throw new Error(
-																result.error || "Failed to delete file"
-															);
+													if (entry.type === "file") {
+														if (
+															!confirm(
+																`Are you sure you want to delete "${entry.name}"?`
+															)
+														) {
+															return;
 														}
 
-														// Show success toast
-														// toast({
-														// 	title: "File deleted",
-														// 	description: `"${entry.name}" has been deleted successfully.`,
-														// });
+														try {
+															// Call the delete API endpoint
+															const response = await fetch("/api/files", {
+																method: "DELETE",
+																headers: {
+																	"Content-Type": "application/json",
+																},
+																body: JSON.stringify({ fileIds: [entry.id] }),
+															});
 
-														// Refresh the UI
-														console.log("REFRESHING~~");
-														router.refresh();
-													} catch (error) {
-														console.error("Error deleting file:", error);
+															const result = await response.json();
 
-														// Show error toast
-														// toast({
-														// 	title: "Error",
-														// 	description: (error as Error).message,
-														// 	variant: "destructive",
-														// });
+															if (!response.ok) {
+																throw new Error(
+																	result.error || "Failed to delete file"
+																);
+															}
+
+															// Show success toast
+															// toast({
+															// 	title: "File deleted",
+															// 	description: `"${entry.name}" has been deleted successfully.`,
+															// });
+
+															// Refresh the UI
+															console.log("REFRESHING~~");
+															router.refresh();
+														} catch (error) {
+															console.error("Error deleting file:", error);
+
+															// Show error toast
+															// toast({
+															// 	title: "Error",
+															// 	description: (error as Error).message,
+															// 	variant: "destructive",
+															// });
+														}
 													}
 												}}
 											>

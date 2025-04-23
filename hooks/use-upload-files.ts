@@ -7,7 +7,7 @@ export function useUploadFiles() {
 			folderId,
 		}: {
 			files: File[];
-			folderId?: string;
+			folderId?: string | null;
 		}) => {
 			const formData = new FormData();
 
