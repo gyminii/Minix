@@ -34,139 +34,63 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { createClient } from "@/lib/supabase/client";
+import { useDriveStore } from "@/lib/store/drive-store";
 import { DriveEntry } from "@/lib/types/type";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
 const getEntryIcon = (entry: DriveEntry) => {
 	if (entry.type === "folder") {
 		return <Folder className="h-4 w-4 mr-2" />;
 	}
 	return <File className="h-4 w-4 mr-2" />;
 };
-const Table = ({
-	initialData = [],
-	folderId,
-}: {
-	initialData: DriveEntry[];
-	folderId?: string | null;
-}) => {
-	const [entries, setEntries] = useState<DriveEntry[]>(initialData);
-	const supabase = createClient();
+const Table = ({ folderId }: { folderId?: string | null }) => {
+	const queryClient = useQueryClient();
 	const router = useRouter();
-	// Set up real-time subscription
-	useEffect(() => {
-		// Create a channel for real-time updates
-		const channel = supabase
-			.channel("drive-changes")
+	const { ...params } = useParams();
+	console.log(params);
+	const { data, deleteFile, deleteFolder } = useDriveStore();
+	// Set up delete folder mutation
+	const deleteFolderMutation = useMutation({
+		mutationFn: async (id: string) => {
+			return await deleteFolder(id);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
+		},
+	});
 
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "folders",
-					filter: folderId ? `parent_id=eq.${folderId}` : "parent_id=is.null",
-				},
-				(payload) => {
-					console.log("New folder created:", payload.new);
-					// Add the new folder to state if it belongs in the current view
-					const newFolder = payload.new as any;
-					if (
-						(folderId === null && newFolder.parent_id === null) ||
-						(folderId && newFolder.parent_id === folderId)
-					) {
-						const folderEntry: DriveEntry = {
-							id: newFolder.id,
-							name: newFolder.name,
-							created_at: newFolder.created_at,
-							type: "folder",
-						};
-
-						setEntries((prev) => [...prev, folderEntry]);
-						toast.success(`Folder "${newFolder.name}" created`);
-					}
-				}
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "files",
-					// filter: folderId ? `folder_id=eq.${folderId}` : "folder_id=is.null",
-				},
-				(payload) => {
-					console.log("New file uploaded:", payload.new);
-					// Add the new file to state if it belongs in the current view
-					const newFile = payload.new as any;
-					if (
-						(folderId === null && newFile.folder_id === null) ||
-						(folderId && newFile.folder_id === folderId)
-					) {
-						const fileEntry: DriveEntry = {
-							id: newFile.id,
-							name: newFile.name,
-							created_at: newFile.created_at,
-							size: newFile.size,
-							type: "file",
-						};
-
-						setEntries((prev) => [...prev, fileEntry]);
-						toast.success(`File "${newFile.name}" uploaded`);
-					}
-				}
-			)
-			.on(
-				"postgres_changes",
-				{ event: "DELETE", schema: "public", table: "folders" },
-				(payload) => {
-					console.log("Folder deleted:", payload.old);
-					// Remove the folder from state
-					setEntries((prev) =>
-						prev.filter(
-							(entry) =>
-								!(
-									entry.type === "folder" &&
-									entry.id === (payload.old as any).id
-								)
-						)
-					);
-					toast.info(`Folder deleted`);
-				}
-			)
-			.on(
-				"postgres_changes",
-				{ event: "DELETE", schema: "public", table: "files" },
-				(payload) => {
-					console.log("File deleted:", payload.old);
-					// Remove the file from state
-					setEntries((prev) =>
-						prev.filter(
-							(entry) =>
-								!(entry.type === "file" && entry.id === (payload.old as any).id)
-						)
-					);
-					toast.info(`File deleted`);
-				}
-			)
-			.subscribe((status) => {
-				console.log("Subscription status:", status);
-			});
-
-		// Clean up subscription on unmount
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	}, [supabase, folderId]);
-
+	// Set up delete file mutation
+	const deleteFileMutation = useMutation({
+		mutationFn: async (id: string) => {
+			return await deleteFile(id);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
+		},
+	});
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
-			router.push(`/drive/folders/${entry.id}`);
+			router.push(`/drive/${entry.id}`);
 		} else {
 			// Handle file click - perhaps open a preview
 			console.log("File clicked:", entry);
+		}
+	};
+
+	const handleDelete = async (entry: DriveEntry) => {
+		if (!confirm(`Are you sure you want to delete "${entry.name}"?`)) {
+			return;
+		}
+
+		try {
+			if (entry.type === "folder") {
+				await deleteFolderMutation.mutateAsync(entry.id);
+			} else {
+				await deleteFileMutation.mutateAsync(entry.id);
+			}
+		} catch (error) {
+			console.error(`Error deleting ${entry.type}:`, error);
 		}
 	};
 	return (
@@ -191,102 +115,67 @@ const Table = ({
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{entries.map((entry) => (
-							<TableRow key={entry.id}>
-								<TableCell className="font-medium">
-									<div
-										className="flex items-center cursor-pointer hover:underline"
-										onClick={() => handleEntryClick(entry)}
-									>
-										{getEntryIcon(entry)}
-										<span>{entry.name}</span>
-									</div>
-								</TableCell>
-								{/* {entity?.size && (
-									<TableCell>{formatFileSize(file.size)}</TableCell>
-								)} */}
-								<TableCell />
-
-								<TableCell>{format(entry.created_at, "MMM d, yyyy")}</TableCell>
-								<TableCell className="text-right">
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost">
-												<span className="sr-only">Open menu</span>
-												<MoreHorizontal />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											<DropdownMenuItem>
-												<Download />
-												<span>Download</span>
-											</DropdownMenuItem>
-											<DropdownMenuItem>
-												<Share2 />
-												<span>Share</span>
-											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												onClick={async () => {
-													// Show confirmation dialog
-													console.log(entry);
-													if (entry.type === "file") {
-														if (
-															!confirm(
-																`Are you sure you want to delete "${entry.name}"?`
-															)
-														) {
-															return;
-														}
-
-														try {
-															// Call the delete API endpoint
-															const response = await fetch("/api/files", {
-																method: "DELETE",
-																headers: {
-																	"Content-Type": "application/json",
-																},
-																body: JSON.stringify({ fileIds: [entry.id] }),
-															});
-
-															const result = await response.json();
-
-															if (!response.ok) {
-																throw new Error(
-																	result.error || "Failed to delete file"
-																);
-															}
-
-															// Show success toast
-															// toast({
-															// 	title: "File deleted",
-															// 	description: `"${entry.name}" has been deleted successfully.`,
-															// });
-
-															// Refresh the UI
-															console.log("REFRESHING~~");
-															router.refresh();
-														} catch (error) {
-															console.error("Error deleting file:", error);
-
-															// Show error toast
-															// toast({
-															// 	title: "Error",
-															// 	description: (error as Error).message,
-															// 	variant: "destructive",
-															// });
-														}
-													}
-												}}
-											>
-												<Trash2 />
-												<span>Delete</span>
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
+						{data.length === 0 ? (
+							<TableRow>
+								<TableCell colSpan={4} className="h-24 text-center">
+									No files or folders found
 								</TableCell>
 							</TableRow>
-						))}
+						) : (
+							data.map((entry) => (
+								<TableRow key={entry.id}>
+									<TableCell className="font-medium">
+										<div
+											className="flex items-center cursor-pointer hover:underline"
+											onClick={() => handleEntryClick(entry)}
+										>
+											{getEntryIcon(entry)}
+											<span>{entry.name}</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										{/* {entry.} */}
+										{/* {entry.size ? `${Math.round(entry.size / 1024)} KB` : ""} */}
+									</TableCell>
+									<TableCell>
+										{format(new Date(entry.created_at), "MMM d, yyyy")}
+									</TableCell>
+									<TableCell className="text-right">
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost">
+													<span className="sr-only">Open menu</span>
+													<MoreHorizontal />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem>
+													<Download className="mr-2 h-4 w-4" />
+													<span>Download</span>
+												</DropdownMenuItem>
+												<DropdownMenuItem>
+													<Share2 className="mr-2 h-4 w-4" />
+													<span>Share</span>
+												</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem
+													onClick={() => handleDelete(entry)}
+													disabled={
+														(entry.type === "folder" &&
+															deleteFolderMutation.isPending) ||
+														(entry.type !== "folder" &&
+															deleteFileMutation.isPending)
+													}
+												>
+													<Trash2 className="mr-2 h-4 w-4" />
+													<span>Delete</span>
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
+								</TableRow>
+							))
+						)}
 					</TableBody>
 				</DataTable>
 			</CardContent>

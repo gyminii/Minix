@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { Folder } from "@/lib/types/type";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -48,188 +50,126 @@ export async function POST(request: Request) {
 		);
 	}
 }
-
 export async function DELETE(request: Request) {
 	try {
 		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const { data: userData, error: userError } = await client.auth.getUser();
+		if (userError || !userData?.user) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
+		const userId = String(userData.user.id);
 
-		const { ids } = await request.json();
+		const body = await request.json();
+		const { folderIds } = body;
 
-		if (!Array.isArray(ids) || ids.length === 0) {
+		// Validate input
+		if (!folderIds || (Array.isArray(folderIds) && folderIds.length === 0)) {
 			return NextResponse.json(
-				{ error: "No folder IDs provided" },
+				{ error: "At least one folder ID is required" },
 				{ status: 400 }
 			);
 		}
 
-		// Step 1: Find all folders to delete (including subfolders)
-		const foldersToDelete = await findAllFoldersRecursively(
-			client,
-			ids,
-			user.id
+		// Convert to array if single ID is provided
+		const folderIdsArray = Array.isArray(folderIds) ? folderIds : [folderIds];
+
+		// Process each folder ID
+		const results = await Promise.all(
+			folderIdsArray.map(async (folderId: string) => {
+				try {
+					// Verify folder ownership
+					const { data: folderData, error: folderError } = await client
+						.from("folders")
+						.select("id")
+						.eq("id", folderId)
+						.eq("user_id", userId)
+						.single();
+
+					if (folderError || !folderData) {
+						return {
+							id: folderId,
+							success: false,
+							error: "Folder not found or access denied",
+						};
+					}
+
+					// Recursively delete the folder and its contents
+					await recursivelyDeleteFolder(client, folderId, userId);
+
+					return { id: folderId, success: true };
+				} catch (error) {
+					console.error(`Error deleting folder ${folderId}:`, error);
+					return {
+						id: folderId,
+						success: false,
+						error: "Failed to delete folder",
+					};
+				}
+			})
 		);
 
-		if (foldersToDelete.length === 0) {
-			return NextResponse.json(
-				{
-					error: "No folders found or you don't have permission to delete them",
-				},
-				{ status: 404 }
-			);
-		}
-
-		const folderIds = foldersToDelete.map((folder) => folder.id);
-		console.log(`Deleting ${folderIds.length} folders:`, folderIds);
-
-		// Step 2: Find and delete all files in these folders
-		const { deletedFiles, storageErrors } = await deleteFilesInFolders(
-			client,
-			folderIds,
-			user.id
-		);
-
-		// Step 3: Delete all folders (will delete from bottom up)
-		const { data, error } = await client
-			.from("folders")
-			.delete()
-			.in("id", folderIds)
-			.eq("user_id", user.id);
-
-		if (error) throw error;
-
-		return NextResponse.json(
-			{
-				success: true,
-				deletedFolders: foldersToDelete.length,
-				deletedFiles: deletedFiles.length,
-				storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
-			},
-			{ status: 200 }
-		);
+		return NextResponse.json({ results });
 	} catch (error) {
-		console.error("Folder delete error:", error);
+		console.error("Folder deletion error:", error);
 		return NextResponse.json(
-			{ error: "Failed to delete folders", details: (error as Error).message },
+			{ error: "Failed to process folder deletion" },
 			{ status: 500 }
 		);
 	}
 }
 
-/**
- * Recursively finds all folders to delete, including subfolders
- */
-async function findAllFoldersRecursively(client, initialFolderIds, userId) {
-	const result = [];
-	const processedIds = new Set();
-	const idsToProcess = [...initialFolderIds];
+// Recursive function to delete a folder and all its contents with proper types
+async function recursivelyDeleteFolder(
+	client: SupabaseClient,
+	folderId: string,
+	userId: string
+): Promise<void> {
+	// Step 1: Find all nested folders
+	const { data: nestedFolders } = (await client
+		.from("folders")
+		.select("id")
+		.eq("parent_id", folderId)) as { data: Pick<Folder, "id">[] | null };
 
-	while (idsToProcess.length > 0) {
-		const batchIds = idsToProcess.splice(0, 100); // Process in batches of 100
-		const uniqueBatchIds = batchIds.filter((id) => !processedIds.has(id));
-
-		if (uniqueBatchIds.length === 0) continue;
-
-		// Mark these IDs as processed
-		uniqueBatchIds.forEach((id) => processedIds.add(id));
-
-		// Get folders that match these IDs and belong to the user
-		const { data: folders, error } = await client
-			.from("folders")
-			.select("id, name, parent_id")
-			.in("id", uniqueBatchIds)
-			.eq("user_id", userId);
-
-		if (error || !folders || folders.length === 0) continue;
-
-		// Add these folders to the result
-		result.push(...folders);
-
-		// Find all subfolders of these folders
-		const { data: subfolders, error: subfoldersError } = await client
-			.from("folders")
-			.select("id")
-			.in(
-				"parent_id",
-				folders.map((f) => f.id)
+	// Step 2: Recursively delete each nested folder
+	if (nestedFolders && nestedFolders.length > 0) {
+		await Promise.all(
+			nestedFolders.map((folder) =>
+				recursivelyDeleteFolder(client, folder.id, userId)
 			)
-			.eq("user_id", userId);
-
-		if (subfoldersError || !subfolders || subfolders.length === 0) continue;
-
-		// Add subfolders to the processing queue
-		idsToProcess.push(...subfolders.map((f) => f.id));
+		);
 	}
 
-	return result;
-}
-
-/**
- * Deletes all files in the specified folders
- */
-async function deleteFilesInFolders(client, folderIds, userId) {
-	// Find all files in these folders
-	const { data: files, error: filesError } = await client
+	// Step 3: Find all files in this folder
+	const { data: files } = await client
 		.from("files")
-		.select("id, name, path")
-		.in("folder_id", folderIds)
+		.select("id, path")
+		.eq("folder_id", folderId)
 		.eq("user_id", userId);
-
-	if (filesError || !files || files.length === 0) {
-		return { deletedFiles: [], storageErrors: [] };
-	}
-
-	console.log(`Found ${files.length} files to delete`);
-
-	// Delete files from storage
-	const storageErrors = [];
-	const storagePromises = files.map(async (file) => {
-		if (file.path) {
-			const { error: storageError } = await client.storage
-				.from("files") // Replace with your bucket name if different
-				.remove([file.path]);
-
-			if (storageError) {
-				console.error(
-					`Error deleting file ${file.id} from storage:`,
-					storageError
-				);
-				storageErrors.push({
-					id: file.id,
-					name: file.name,
-					error: storageError.message,
-				});
+	console.log("FILES TO DELETE ALONGSIDE: ", JSON.stringify(files, null, 4));
+	// Step 4: Delete all files from storage and database
+	if (files && files.length > 0) {
+		// Delete files from storage bucket
+		const filePaths = files
+			.map((file) => file.path)
+			.filter((path): path is string => path !== undefined);
+		console.log("FIle paths to delete", filePaths);
+		if (filePaths.length > 0) {
+			const { error: storageErrors, data } = await client.storage
+				.from("minix")
+				.remove(filePaths);
+			console.log(storageErrors, data);
+			if (storageErrors) {
+				console.log("Error deleting: ", storageErrors);
 			}
 		}
-	});
 
-	// Wait for all storage operations to complete
-	await Promise.all(storagePromises);
-
-	// Delete files from database
-	const { error: deleteError } = await client
-		.from("files")
-		.delete()
-		.in(
-			"id",
-			files.map((file) => file.id)
-		)
-		.eq("user_id", userId);
-
-	if (deleteError) {
-		console.error("Error deleting files from database:", deleteError);
-		throw deleteError;
+		// Delete files from database
+		await client.from("files").delete().eq("folder_id", folderId);
 	}
 
-	return { deletedFiles: files, storageErrors };
+	// Step 5: Finally delete the folder itself
+	await client.from("folders").delete().eq("id", folderId);
 }

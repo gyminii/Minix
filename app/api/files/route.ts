@@ -34,7 +34,6 @@ export async function POST(req: Request) {
 							name: "unknown",
 						};
 					}
-					console.log("filename: ", JSON.stringify(file, null, 4));
 
 					// Update the file path to include the "files" folder
 					const filePath = `files/${Date.now()}-${file.name}`;
@@ -193,9 +192,8 @@ export async function DELETE(req: Request) {
 		for (const file of filesToDelete) {
 			if (file.path) {
 				const { error: storageError } = await supabase.storage
-					.from("files") // Replace with your actual bucket name if different
+					.from("minix")
 					.remove([file.path]);
-
 				if (storageError) {
 					console.error(
 						`Error deleting file ${file.id} from storage:`,
