@@ -116,7 +116,7 @@ export function FileUploadDialog({
 	const { mutate: uploadFiles, isPending } = useUploadFiles();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
-
+	console.log(folderId, path);
 	const {
 		control,
 		handleSubmit,

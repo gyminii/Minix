@@ -8,7 +8,7 @@ import Table from "../table";
 
 const DriveClient = () => {
 	const { path } = useParams();
-	const folderId = path ? path[0] : null;
+	const folderId = path ? path[1] : null;
 
 	const { setData, setCurrentFolder, setupSubscriptions, cleanup } =
 		useDriveStore();
@@ -26,16 +26,14 @@ const DriveClient = () => {
 			setCurrentFolder(folderId);
 			setupSubscriptions();
 		}
-		return () => {
-			cleanup();
-		};
+		return () => cleanup();
 	}, [
-		// initialData,
+		initialData,
 		folderId,
-		// setData,
-		// setCurrentFolder,
-		// setupSubscriptions,
-		// cleanup,
+		setData,
+		setCurrentFolder,
+		setupSubscriptions,
+		cleanup,
 	]);
 
 	return <Table folderId={folderId} />;

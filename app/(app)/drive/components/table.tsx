@@ -71,7 +71,7 @@ const Table = ({ folderId }: { folderId?: string | null }) => {
 	});
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
-			router.push(`/drive/${entry.id}`);
+			router.push(`/drive/folders/${entry.id}`);
 		} else {
 			// Handle file click - perhaps open a preview
 			console.log("File clicked:", entry);

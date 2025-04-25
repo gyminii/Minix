@@ -50,8 +50,18 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 	isLoading: false,
 	currentFolderId: null,
 
-	setData: (data) => set({ data }),
-	setCurrentFolder: (folderId) => set({ currentFolderId: folderId }),
+	setData: (data) => {
+		const currentData = get().data;
+		if (JSON.stringify(currentData) !== JSON.stringify(data)) {
+			set({ data });
+		}
+	},
+	setCurrentFolder: (folderId) => {
+		// Check if folder is different before updating
+		if (get().currentFolderId !== folderId) {
+			set({ currentFolderId: folderId });
+		}
+	},
 
 	createFolder: async (name, parentId) => {
 		try {
@@ -102,7 +112,6 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 			return false;
 		}
 	},
-
 	deleteFile: async (fileId) => {
 		try {
 			const response = await fetch("/api/files", {
@@ -176,31 +185,23 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 					event: "INSERT",
 					schema: "public",
 					table: "folders",
-					filter: currentFolderId
-						? `parent_id=eq.${currentFolderId}`
-						: "parent_id=is.null",
 				},
 				(payload) => {
 					console.log("New folder created:", payload.new);
 					const newFolder = payload.new as FolderWithParentId;
 
-					if (
-						(currentFolderId === null && newFolder.parent_id === null) ||
-						(currentFolderId && newFolder.parent_id === currentFolderId)
-					) {
-						const folderEntry: Folder = {
-							id: newFolder.id,
-							name: newFolder.name,
-							created_at: newFolder.created_at,
-							type: "folder",
-						};
+					const folderEntry: Folder = {
+						id: newFolder.id,
+						name: newFolder.name,
+						created_at: newFolder.created_at,
+						type: "folder",
+					};
 
-						set((state) => ({
-							data: [...state.data, folderEntry],
-						}));
+					set((state) => ({
+						data: [...state.data, folderEntry],
+					}));
 
-						toast.success(`Folder "${newFolder.name}" created`);
-					}
+					toast.success(`Folder "${newFolder.name}" created`);
 				}
 			)
 			// Handle file insertions
@@ -243,7 +244,7 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 				"postgres_changes",
 				{ event: "DELETE", schema: "public", table: "folders" },
 				(payload) => {
-					console.log("Folder deleted:", payload.old);
+					// console.log("Folder deleted:", payload.old);
 
 					set((state) => ({
 						data: state.data.filter(
@@ -255,7 +256,7 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 						),
 					}));
 
-					toast.info(`Folder deleted`);
+					// toast.info(`Folder deleted`);
 				}
 			)
 			// Handle file deletions
