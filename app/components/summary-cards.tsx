@@ -1,5 +1,6 @@
 "use client";
 import { FileText, Video, File, ImageIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 import {
 	Card,
@@ -12,14 +13,35 @@ import CountAnimation from "@/components/ui/custom/count-animation";
 import { Progress } from "@/components/ui/progress";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
+
+// Animation variants
+const containerVariants = {
+	hidden: { opacity: 0 },
+	show: {
+		opacity: 1,
+		transition: {
+			staggerChildren: 0.1,
+		},
+	},
+};
+
+const cardVariants = {
+	hidden: { opacity: 0, scale: 0.95, y: 20 },
+	show: {
+		opacity: 1,
+		scale: 1,
+		y: 0,
+		transition: {
+			type: "spring",
+			stiffness: 260,
+			damping: 20,
+		},
+	},
+};
 
 export function SummaryCards() {
-	const { data, isLoading, error, refreshDashboardStats } = useDashboardStats();
+	const { data, isLoading, error } = useDashboardStats();
 
-	useEffect(() => {
-		refreshDashboardStats();
-	}, []);
 	if (isLoading) {
 		return <SummaryCardsSkeleton />;
 	}
@@ -39,123 +61,124 @@ export function SummaryCards() {
 	}
 
 	return (
-		<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+		<motion.div
+			className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+			variants={containerVariants}
+			initial="hidden"
+			animate="show"
+		>
 			{/* Documents Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Documents</CardTitle>
-					<CardAction>
-						<span className="text-blue-500">
-							<FileText className="size-6" />
-						</span>
-					</CardAction>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="text-2xl font-semibold lg:text-3xl">
-						<CountAnimation number={data.stats.documents.count} />
-					</div>
-					<div className="space-y-2">
-						<div className="text-muted-foreground text-sm">
-							{data.stats.documents.sizeGB} GB used
+			<motion.div variants={cardVariants} layout>
+				<Card>
+					<CardHeader>
+						<CardTitle>Documents</CardTitle>
+						<CardAction>
+							<span className="text-blue-500">
+								<FileText className="size-6" />
+							</span>
+						</CardAction>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="text-2xl font-semibold lg:text-3xl">
+							<CountAnimation number={data.stats.documents.count} />
 						</div>
-						<Progress
-							value={data.stats.documents.percentage}
-							indicatorColor="bg-blue-500"
-						/>
-						<div className="text-muted-foreground text-sm">
-							{data.stats.documents.percentage}% of storage used
+						<div className="space-y-2">
+							<div className="text-muted-foreground text-sm">
+								{data.stats.documents.sizeGB} GB used
+							</div>
+							<Progress value={data.stats.documents.percentage} />
+							<div className="text-muted-foreground text-sm">
+								{data.stats.documents.percentage}% of storage used
+							</div>
 						</div>
-					</div>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			</motion.div>
 
 			{/* Images Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Images</CardTitle>
-					<CardAction>
-						<span className="text-green-500">
-							<ImageIcon className="size-6" />
-						</span>
-					</CardAction>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="text-2xl font-semibold lg:text-3xl">
-						<CountAnimation number={data.stats.images.count} />
-					</div>
-					<div className="space-y-2">
-						<div className="text-muted-foreground text-sm">
-							{data.stats.images.sizeGB} GB used
+			<motion.div variants={cardVariants} layout>
+				<Card>
+					<CardHeader>
+						<CardTitle>Images</CardTitle>
+						<CardAction>
+							<span className="text-green-500">
+								<ImageIcon className="size-6" />
+							</span>
+						</CardAction>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="text-2xl font-semibold lg:text-3xl">
+							<CountAnimation number={data.stats.images.count} />
 						</div>
-						<Progress
-							value={data.stats.images.percentage}
-							indicatorColor="bg-green-500"
-						/>
-						<div className="text-muted-foreground text-sm">
-							{data.stats.images.percentage}% of storage used
+						<div className="space-y-2">
+							<div className="text-muted-foreground text-sm">
+								{data.stats.images.sizeGB} GB used
+							</div>
+							<Progress value={data.stats.images.percentage} />
+							<div className="text-muted-foreground text-sm">
+								{data.stats.images.percentage}% of storage used
+							</div>
 						</div>
-					</div>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			</motion.div>
 
 			{/* Videos Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Videos</CardTitle>
-					<CardAction>
-						<span className="text-red-500">
-							<Video className="size-6" />
-						</span>
-					</CardAction>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="text-2xl font-semibold lg:text-3xl">
-						<CountAnimation number={data.stats.videos.count} />
-					</div>
-					<div className="space-y-2">
-						<div className="text-muted-foreground text-sm">
-							{data.stats.videos.sizeGB} GB used
+			<motion.div variants={cardVariants} layout>
+				<Card>
+					<CardHeader>
+						<CardTitle>Videos</CardTitle>
+						<CardAction>
+							<span className="text-red-500">
+								<Video className="size-6" />
+							</span>
+						</CardAction>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="text-2xl font-semibold lg:text-3xl">
+							<CountAnimation number={data.stats.videos.count} />
 						</div>
-						<Progress
-							value={data.stats.videos.percentage}
-							indicatorColor="bg-red-500"
-						/>
-						<div className="text-muted-foreground text-sm">
-							{data.stats.videos.percentage}% of storage used
+						<div className="space-y-2">
+							<div className="text-muted-foreground text-sm">
+								{data.stats.videos.sizeGB} GB used
+							</div>
+							<Progress value={data.stats.videos.percentage} />
+							<div className="text-muted-foreground text-sm">
+								{data.stats.videos.percentage}% of storage used
+							</div>
 						</div>
-					</div>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			</motion.div>
 
 			{/* Others Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Others</CardTitle>
-					<CardAction>
-						<span className="text-yellow-500">
-							<File className="size-6" />
-						</span>
-					</CardAction>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="text-2xl font-semibold lg:text-3xl">
-						<CountAnimation number={data.stats.others.count} />
-					</div>
-					<div className="space-y-2">
-						<div className="text-muted-foreground text-sm">
-							{data.stats.others.sizeGB} GB used
+			<motion.div variants={cardVariants} layout>
+				<Card>
+					<CardHeader>
+						<CardTitle>Others</CardTitle>
+						<CardAction>
+							<span className="text-yellow-500">
+								<File className="size-6" />
+							</span>
+						</CardAction>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="text-2xl font-semibold lg:text-3xl">
+							<CountAnimation number={data.stats.others.count} />
 						</div>
-						<Progress
-							value={data.stats.others.percentage}
-							indicatorColor="bg-yellow-500"
-						/>
-						<div className="text-muted-foreground text-sm">
-							{data.stats.others.percentage}% of storage used
+						<div className="space-y-2">
+							<div className="text-muted-foreground text-sm">
+								{data.stats.others.sizeGB} GB used
+							</div>
+							<Progress value={data.stats.others.percentage} />
+							<div className="text-muted-foreground text-sm">
+								{data.stats.others.percentage}% of storage used
+							</div>
 						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
+					</CardContent>
+				</Card>
+			</motion.div>
+		</motion.div>
 	);
 }
 

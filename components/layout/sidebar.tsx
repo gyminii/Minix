@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/sidebar";
 // import Logo from "@/components/layout/logo";
 import { page_routes } from "@/lib/routes-config";
+import Logo from "./logo";
 
 export default function Sidebar() {
 	const pathname = usePathname();
@@ -74,7 +75,7 @@ export default function Sidebar() {
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<SidebarMenuButton className="rounded-none group-data-[collapsible=icon]:px-0!">
-									{/* <Logo /> */}
+									<Logo />
 									<div className="truncate font-semibold group-data-[collapsible=icon]:hidden">
 										Minix
 									</div>

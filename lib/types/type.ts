@@ -10,6 +10,7 @@ type Folder = {
 	id: string;
 	name: string;
 	created_at: string;
+	size?: number;
 	type: "folder";
 };
 

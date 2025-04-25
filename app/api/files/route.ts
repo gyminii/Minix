@@ -22,7 +22,6 @@ export async function POST(req: Request) {
 		if (!files || files.length === 0) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
 		}
-
 		const uploads = await Promise.all(
 			files.map(async (file) => {
 				try {
@@ -254,6 +253,66 @@ export async function DELETE(req: Request) {
 				error: "An unexpected error occurred",
 				details: (error as Error).message,
 			},
+			{ status: 500 }
+		);
+	}
+}
+
+export async function GET(req: Request) {
+	try {
+		const url = new URL(req.url);
+		const limit = Number.parseInt(url.searchParams.get("limit") || "5", 10);
+
+		const client = await createClient();
+		const {
+			data: { user },
+			error: authError,
+		} = await client.auth.getUser();
+
+		if (authError || !user) {
+			return NextResponse.json(
+				{ error: "User not authenticated" },
+				{ status: 401 }
+			);
+		}
+
+		// Get recent files for the user, ordered by creation date
+		const { data: files, error: filesError } = await client
+			.from("files")
+			.select("*")
+			.eq("user_id", user.id)
+			.order("created_at", { ascending: false })
+			.limit(limit);
+
+		if (filesError) {
+			console.error("Error fetching files:", filesError);
+			return NextResponse.json(
+				{ error: "Failed to fetch files" },
+				{ status: 500 }
+			);
+		}
+
+		// For each file, get a signed URL
+		const filesWithUrls = await Promise.all(
+			files.map(async (file) => {
+				if (file.path) {
+					const { data } = await client.storage
+						.from("minix")
+						.createSignedUrl(file.path, 3600); // 1 hour expiry
+					return {
+						...file,
+						url: data?.signedUrl || null,
+					};
+				}
+				return file;
+			})
+		);
+
+		return NextResponse.json(filesWithUrls);
+	} catch (error) {
+		console.error("Server error:", error);
+		return NextResponse.json(
+			{ error: "Internal error", details: String(error) },
 			{ status: 500 }
 		);
 	}

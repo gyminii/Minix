@@ -7,6 +7,7 @@ import {
 	MoreHorizontal,
 	Share2,
 	Trash2,
+	Loader2,
 } from "lucide-react";
 
 import { FileUploadDialog } from "@/app/components";
@@ -35,21 +36,42 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useDriveStore } from "@/lib/store/drive-store";
-import { DriveEntry } from "@/lib/types/type";
+import type { DriveEntry } from "@/lib/types/type";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
+
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
 const getEntryIcon = (entry: DriveEntry) => {
 	if (entry.type === "folder") {
 		return <Folder className="h-4 w-4 mr-2" />;
 	}
 	return <File className="h-4 w-4 mr-2" />;
 };
+
 const Table = () => {
 	const queryClient = useQueryClient();
 	const router = useRouter();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
 	const { data, deleteFile, deleteFolder } = useDriveStore();
+	const [isLoading, setIsLoading] = useState(true);
+
+	// Set loading state to false after a short delay to simulate data fetching
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setIsLoading(false);
+		}, 800); // Simulate loading for 800ms
+
+		return () => clearTimeout(timer);
+	}, [data]);
+
+	// Reset loading state when folder ID changes
+	useEffect(() => {
+		setIsLoading(true);
+	}, [folderId]);
+
 	// Set up delete folder mutation
 	const deleteFolderMutation = useMutation({
 		mutationFn: async (id: string) => {
@@ -69,6 +91,7 @@ const Table = () => {
 			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
 		},
 	});
+
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
 			router.push(`/drive/folders/${entry.id}`);
@@ -93,6 +116,7 @@ const Table = () => {
 			console.error(`Error deleting ${entry.type}:`, error);
 		}
 	};
+
 	return (
 		<Card>
 			<CardHeader>
@@ -115,15 +139,45 @@ const Table = () => {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{data.length === 0 ? (
+						{isLoading ? (
+							<TableRow>
+								<TableCell colSpan={4} className="h-24">
+									<div className="flex items-center justify-center">
+										<motion.div
+											initial={{ opacity: 0 }}
+											animate={{ opacity: 1 }}
+											transition={{ duration: 0.3 }}
+											className="flex flex-col items-center gap-2"
+										>
+											<Loader2 className="h-8 w-8 animate-spin text-primary" />
+											<p className="text-sm text-muted-foreground">
+												Loading files and folders...
+											</p>
+										</motion.div>
+									</div>
+								</TableCell>
+							</TableRow>
+						) : data.length === 0 ? (
 							<TableRow>
 								<TableCell colSpan={4} className="h-24 text-center">
-									No files or folders found
+									<motion.div
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										transition={{ duration: 0.3 }}
+									>
+										No files or folders found
+									</motion.div>
 								</TableCell>
 							</TableRow>
 						) : (
-							data.map((entry) => (
-								<TableRow key={entry.id}>
+							data.map((entry, index) => (
+								<motion.tr
+									key={entry.id}
+									initial={{ opacity: 0, y: 10 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ duration: 0.2, delay: index * 0.05 }}
+									className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+								>
 									<TableCell className="font-medium">
 										<div
 											className="flex items-center cursor-pointer hover:underline"
@@ -134,8 +188,7 @@ const Table = () => {
 										</div>
 									</TableCell>
 									<TableCell>
-										{/* {entry.} */}
-										{/* {entry.size ? `${Math.round(entry.size / 1024)} KB` : ""} */}
+										{entry?.size && `${Math.round(entry.size / 1024)} KB`}
 									</TableCell>
 									<TableCell>
 										{format(new Date(entry.created_at), "MMM d, yyyy")}
@@ -167,13 +220,20 @@ const Table = () => {
 															deleteFileMutation.isPending)
 													}
 												>
-													<Trash2 className="mr-2 h-4 w-4" />
+													{(entry.type === "folder" &&
+														deleteFolderMutation.isPending) ||
+													(entry.type !== "folder" &&
+														deleteFileMutation.isPending) ? (
+														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+													) : (
+														<Trash2 className="mr-2 h-4 w-4" />
+													)}
 													<span>Delete</span>
 												</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
 									</TableCell>
-								</TableRow>
+								</motion.tr>
 							))
 						)}
 					</TableBody>

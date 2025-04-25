@@ -17,7 +17,6 @@ const DriveClient = () => {
 		staleTime: 1000 * 60,
 	});
 	useEffect(() => {
-		console.log("setData in drive-client", folderId);
 		if (initialData) {
 			setData(initialData);
 			setCurrentFolder(folderId);

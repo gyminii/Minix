@@ -190,61 +190,70 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 					console.log("New folder created:", payload.new);
 					const newFolder = payload.new as FolderWithParentId;
 
-					const folderEntry: Folder = {
-						id: newFolder.id,
-						name: newFolder.name,
-						created_at: newFolder.created_at,
-						type: "folder",
-					};
+					// Only add to current view if it belongs in the current folder
+					if (
+						(currentFolderId === null && newFolder.parent_id === null) ||
+						(currentFolderId && newFolder.parent_id === currentFolderId)
+					) {
+						const folderEntry: Folder = {
+							id: newFolder.id,
+							name: newFolder.name,
+							created_at: newFolder.created_at,
+							type: "folder",
+						};
 
-					set((state) => ({
-						data: [...state.data, folderEntry],
-					}));
+						set((state) => ({
+							data: [...state.data, folderEntry],
+						}));
 
-					toast.success(`Folder "${newFolder.name}" created`);
+						toast.success(`Folder "${newFolder.name}" created`);
+					}
 				}
 			)
 			// Handle file insertions
 			.on(
 				"postgres_changes",
 				{
-					event: "*",
+					event: "INSERT",
 					schema: "public",
 					table: "files",
 				},
 				(payload) => {
-					if (payload.eventType === "INSERT") {
-						console.log("New file uploaded:", payload.new);
-						// Use extended type that includes folder_id
-						const newFile = payload.new as FileWithFolderId;
+					console.log("File insert detected:", payload);
+					// Use extended type that includes folder_id
+					const newFile = payload.new as FileWithFolderId;
 
-						if (
-							(currentFolderId === null && newFile.folder_id === null) ||
-							(currentFolderId && newFile.folder_id === currentFolderId)
-						) {
-							const fileEntry: File = {
-								id: newFile.id,
-								name: newFile.name,
-								created_at: newFile.created_at,
-								size: newFile.size,
-								type: newFile.type || "application/octet-stream", // Default MIME type if not provided
-							};
+					// Only add to current view if it belongs in the current folder
+					if (
+						(currentFolderId === null && newFile.folder_id === null) ||
+						(currentFolderId && newFile.folder_id === currentFolderId)
+					) {
+						const fileEntry: File = {
+							id: newFile.id,
+							name: newFile.name,
+							created_at: newFile.created_at,
+							size: newFile.size,
+							type: newFile.type || "application/octet-stream", // Default MIME type if not provided
+						};
 
-							set((state) => ({
-								data: [...state.data, fileEntry],
-							}));
+						set((state) => ({
+							data: [...state.data, fileEntry],
+						}));
 
-							toast.success(`File "${newFile.name}" uploaded`);
-						}
+						toast.success(`File "${newFile.name}" uploaded`);
 					}
 				}
 			)
 			// Handle folder deletions
 			.on(
 				"postgres_changes",
-				{ event: "DELETE", schema: "public", table: "folders" },
+				{
+					event: "DELETE",
+					schema: "public",
+					table: "folders",
+				},
 				(payload) => {
-					// console.log("Folder deleted:", payload.old);
+					console.log("Folder deleted:", payload.old);
 
 					set((state) => ({
 						data: state.data.filter(
@@ -256,13 +265,17 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 						),
 					}));
 
-					// toast.info(`Folder deleted`);
+					toast.info(`Folder deleted`);
 				}
 			)
 			// Handle file deletions
 			.on(
 				"postgres_changes",
-				{ event: "DELETE", schema: "public", table: "files" },
+				{
+					event: "DELETE",
+					schema: "public",
+					table: "files",
+				},
 				(payload) => {
 					console.log("File deleted:", payload.old);
 
@@ -278,7 +291,18 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 
 					toast.info(`File deleted`);
 				}
-			);
+			)
+			.subscribe((status) => {
+				console.log("Subscription status:", status);
+
+				// Handle subscription errors
+				if (status === "CHANNEL_ERROR") {
+					console.error("Supabase real-time subscription error");
+					toast.error(
+						"Real-time updates unavailable. Please refresh the page manually."
+					);
+				}
+			});
 
 		// Store the channel in window for cleanup
 		interface WindowWithChannel extends Window {
@@ -294,6 +318,7 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 		}
 		const typedWindow = window as WindowWithChannel;
 		if (typedWindow.__driveChannel) {
+			console.log("Cleaning up Supabase channel subscription");
 			supabase.removeChannel(typedWindow.__driveChannel);
 			typedWindow.__driveChannel = undefined;
 		}

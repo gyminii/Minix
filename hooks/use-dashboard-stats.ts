@@ -47,8 +47,10 @@ export function useDashboardStats() {
 	});
 
 	// Add a function to manually refresh the data
-	const refreshDashboardStats = () =>
+	const refreshDashboardStats = () => {
+		console.log("refreshing");
 		queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+	};
 
 	return {
 		...query,

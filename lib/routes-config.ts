@@ -26,6 +26,11 @@ export const page_routes: PageRoutesType[] = [
 				href: "/drive",
 				icon: "SquareKanban",
 			},
+			{
+				title: "Paste",
+				href: "/paste",
+				icon: "Clipboard",
+			},
 		],
 	},
 ];

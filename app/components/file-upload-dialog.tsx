@@ -38,8 +38,6 @@ interface FileUploadDropzoneProps {
 	maxFiles?: number;
 	maxSize?: number;
 	accept?: Accept;
-	onUpload?: (files: File[]) => Promise<void>;
-	className?: string;
 }
 
 // Form schema with zod validation
@@ -108,7 +106,7 @@ const getFileTypeIcon = (type: string) => {
 
 export function FileUploadDialog({
 	maxFiles = 10,
-	maxSize = 4 * 1024 * 1024, // 4MB
+	maxSize = 10 * 1024 * 1024, // 4MB
 	accept = {
 		// Documents
 		"application/pdf": [".pdf"],
@@ -163,13 +161,11 @@ export function FileUploadDialog({
 		"application/x-7z-compressed": [".7z"],
 		"application/gzip": [".tar.gz"],
 	},
-	onUpload,
 }: FileUploadDropzoneProps) {
 	const { mutate: uploadFiles, isPending } = useUploadFiles();
 	const { refreshDashboardStats } = useDashboardStats();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
-	console.log(folderId, path);
 	const {
 		control,
 		handleSubmit,
@@ -298,32 +294,28 @@ export function FileUploadDialog({
 	const onSubmit = useCallback(
 		async (data: UploadFormValues) => {
 			try {
-				if (onUpload) {
-					await onUpload(data.files);
-					setOpen(false);
-				} else {
-					// Use the upload mutation
-					uploadFiles(
-						{ files: data.files, folderId: folderId },
-						{
-							onSuccess: (res) => {
-								if (res.failed.length) console.log("Failed:", res.failed);
-								reset();
-								setOpen(false);
-								refreshDashboardStats();
-							},
-							onError: (err) => {
-								console.error("Upload error:", err);
-								setOpen(false);
-							},
-						}
-					);
-				}
+				uploadFiles(
+					{ files: data.files, folderId: folderId },
+					{
+						onSuccess: (res) => {
+							// refreshDashboardStats();
+							if (res.failed.length) console.log("Failed:", res.failed);
+							refreshDashboardStats();
+
+							reset();
+							setOpen(false);
+						},
+						onError: (err) => {
+							console.error("Upload error:", err);
+							setOpen(false);
+						},
+					}
+				);
 			} catch (error) {
 				console.error(error);
 			}
 		},
-		[onUpload, folderId, uploadFiles, reset, refreshDashboardStats]
+		[folderId, uploadFiles, reset, refreshDashboardStats]
 	);
 
 	return (
