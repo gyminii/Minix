@@ -99,6 +99,8 @@ const getFileTypeIcon = (type: string) => {
 		return "📑";
 	} else if (type.includes("image/")) {
 		return "🖼️";
+	} else if (type.includes("text/")) {
+		return "📄";
 	} else {
 		return "📁";
 	}

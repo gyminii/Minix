@@ -197,9 +197,18 @@ export function FolderListCards() {
 							<CardHeader>
 								<CardTitle className="flex gap-2">
 									<Folder className="size-4 text-yellow-600" />
-									<h3 className="leading-none font-semibold tracking-tight">
-										{folder.name}
+									<h3
+										className="cursor-pointer hover:underline leading-none font-semibold tracking-tight"
+										onClick={() => {
+											router.push(`/drive/folders/${folder.id}`);
+										}}
+									>
+										{/* {getEntryIcon(entry)} */}
+										<span>{folder.name}</span>
 									</h3>
+									{/* <h3 className="leading-none font-semibold tracking-tight">
+										{folder.name}
+									</h3> */}
 								</CardTitle>
 								<CardAction>
 									<DropdownMenu>

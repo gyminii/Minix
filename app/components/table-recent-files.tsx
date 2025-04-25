@@ -110,7 +110,17 @@ function getFileIcon(type: string) {
 		return <File className="size-4" />;
 	}
 }
-
+interface FileAttachment {
+	id: string;
+	name: string;
+	size: number;
+	type: string;
+	url: string;
+	created_at: string;
+	path?: string;
+	folder_id?: string | null;
+	user_id?: string;
+}
 export function TableRecentFiles() {
 	const queryClient = useQueryClient();
 
@@ -119,7 +129,7 @@ export function TableRecentFiles() {
 		data: files,
 		isLoading,
 		error,
-	} = useQuery({
+	} = useQuery<FileAttachment[]>({
 		queryKey: ["recent-files"],
 		queryFn: async () => {
 			const response = await fetch("/api/files?limit=5");
@@ -292,7 +302,7 @@ export function TableRecentFiles() {
 												<DropdownMenuContent align="end">
 													<DropdownMenuItem asChild>
 														<a
-															href={file.url}
+															href={file?.url}
 															download
 															target="_blank"
 															rel="noopener noreferrer"

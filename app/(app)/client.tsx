@@ -1,13 +1,9 @@
 "use client";
-import { FileUploadForm } from "@/components/upload-form";
 
-import {
-	FolderListCards,
-	StorageStatusCard,
-	SummaryCards,
-	TableRecentFiles,
-} from "../components";
 import { motion } from "framer-motion";
+import { FolderListCards, SummaryCards, TableRecentFiles } from "../components";
+
+import Link from "next/link";
 
 // Animation variants for container
 const containerVariants = {
@@ -15,8 +11,8 @@ const containerVariants = {
 	show: {
 		opacity: 1,
 		transition: {
-			staggerChildren: 0.1,
-			delayChildren: 0.3,
+			staggerChildren: 0.15,
+			delayChildren: 0.2,
 		},
 	},
 };
@@ -45,12 +41,11 @@ const titleVariants = {
 			type: "spring",
 			stiffness: 300,
 			damping: 30,
-			delay: 0.2,
 		},
 	},
 };
 
-const Client = () => {
+const ClientPage = () => {
 	return (
 		<motion.div
 			className="space-y-4"
@@ -58,48 +53,31 @@ const Client = () => {
 			initial="hidden"
 			animate="show"
 		>
-			<motion.div
-				className="flex flex-row items-center justify-between"
-				variants={titleVariants}
-			>
-				<h1 className="text-xl font-bold tracking-tight lg:text-2xl">
-					File Manager
-				</h1>
+			{/* First item to appear */}
+			<motion.div className="w-full" variants={itemVariants} custom={0}>
+				<TableRecentFiles />
 			</motion.div>
 
-			<motion.div variants={itemVariants}>
-				<FileUploadForm />
-			</motion.div>
-
-			<motion.div variants={itemVariants}>
+			{/* Second item to appear */}
+			<motion.div variants={itemVariants} custom={1} className="w-full">
 				<SummaryCards />
 			</motion.div>
 
+			{/* Third item to appear */}
 			<motion.h3
-				className="text-lg font-bold tracking-tight lg:text-xl"
-				variants={itemVariants}
+				className="text-lg font-bold tracking-tight lg:text-xl cursor-pointer hover:text-primary"
+				variants={titleVariants}
+				custom={2}
 			>
-				Recently added folders
+				<Link href="/drive">Recently added folders</Link>
 			</motion.h3>
 
-			<motion.div
-				className="mb-4 grid gap-4 lg:grid-cols-3"
-				variants={itemVariants}
-			>
-				<div className="lg:col-span-2">
-					<FolderListCards />
-				</div>
-				<StorageStatusCard />
-			</motion.div>
-
-			<motion.div
-				className="gap-4 space-y-4 lg:grid lg:grid-cols-2 lg:space-y-0"
-				variants={itemVariants}
-			>
-				<TableRecentFiles />
+			{/* Fourth item to appear - full width */}
+			<motion.div className="mb-4 w-full" variants={itemVariants} custom={3}>
+				<FolderListCards />
 			</motion.div>
 		</motion.div>
 	);
 };
 
-export default Client;
+export default ClientPage;

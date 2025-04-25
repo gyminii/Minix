@@ -43,19 +43,16 @@ export const readDrive = async ({
 
 	const userId = user.id;
 
-	// Query for folders
 	const foldersQuery = supabase
 		.from("folders")
 		.select("id, name, created_at")
 		.eq("user_id", userId);
 
-	// Query for files
 	const filesQuery = supabase
 		.from("files")
 		.select("id, name, created_at, size, type, url")
 		.eq("user_id", userId);
 
-	// Apply parent/folder filter based on folderId
 	if (folderId === null) {
 		foldersQuery.is("parent_id", null);
 		filesQuery.is("folder_id", null);
@@ -71,7 +68,6 @@ export const readDrive = async ({
 		throw foldersRes.error || filesRes.error;
 	}
 
-	// Map the results to the expected format
 	const folderEntries: Folder[] = foldersRes.data.map((f) => ({
 		...f,
 		type: "folder",
@@ -82,6 +78,5 @@ export const readDrive = async ({
 		type: "file",
 	}));
 
-	// Return only the direct children of the specified folder (or root)
 	return [...folderEntries, ...fileEntries];
 };

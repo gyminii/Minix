@@ -1,6 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useUploadFiles() {
+	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({
 			files,
@@ -18,8 +19,6 @@ export function useUploadFiles() {
 			files.forEach((file: File) => {
 				formData.append("files", file);
 			});
-			console.log(folderId, formData.get("folder_id"));
-
 			// Add folder ID if provided
 			if (folderId) formData.append("folder_id", folderId);
 
@@ -38,6 +37,20 @@ export function useUploadFiles() {
 
 			console.log("Upload success:", result);
 			return result;
+		},
+		onSuccess: (_, variables) => {
+			console.log(
+				"Upload successful, invalidating queries for folder:",
+				variables.folderId
+			);
+
+			// Invalidate the drive query to refresh the data
+			queryClient.invalidateQueries({
+				queryKey: ["drive", variables.folderId],
+			});
+
+			// Also invalidate dashboard stats
+			queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 		},
 		onError: (error) => {
 			console.error("Upload error:", error);

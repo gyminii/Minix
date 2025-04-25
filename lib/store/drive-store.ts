@@ -185,6 +185,10 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 					event: "INSERT",
 					schema: "public",
 					table: "folders",
+					filter:
+						currentFolderId === null
+							? "parent_id=is.null"
+							: `parent_id=eq.${currentFolderId}`,
 				},
 				(payload) => {
 					console.log("New folder created:", payload.new);
@@ -217,6 +221,10 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 					event: "INSERT",
 					schema: "public",
 					table: "files",
+					filter:
+						currentFolderId === null
+							? "folder_id=is.null"
+							: `folder_id=eq.${currentFolderId}`,
 				},
 				(payload) => {
 					console.log("File insert detected:", payload);
@@ -301,6 +309,8 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 					toast.error(
 						"Real-time updates unavailable. Please refresh the page manually."
 					);
+				} else if (status === "SUBSCRIBED") {
+					console.log("Successfully subscribed to real-time updates");
 				}
 			});
 

@@ -91,32 +91,41 @@ export async function POST(req: Request) {
 
 		const failed = uploads.filter((upload) => upload.error || !upload.name);
 
-		if (successful.length > 0) {
-			// Prepare data for database insertion
-			const dbRecords = successful.map((meta) => meta);
-
-			// Insert metadata into database
-			const { error: insertError } = await client
-				.from("files")
-				.insert(dbRecords)
-				.select();
-
-			if (insertError) {
-				console.error("Insert error:", insertError);
-				return NextResponse.json(
-					{ error: "Insert failed", details: insertError },
-					{ status: 500 }
-				);
-			}
+		if (successful.length > 0 && failed.length > 0) {
+			// Partial success case
+			return NextResponse.json(
+				{
+					message: "Some files were uploaded successfully, but others failed",
+					success: successful.map((f) => ({ name: f.name, url: f.url })),
+					failed: failed.map((f) => ({
+						name: f.name || "Unknown",
+						error: f.error,
+					})),
+					totalAttempted: files.length,
+					successCount: successful.length,
+					failureCount: failed.length,
+				},
+				{ status: 207 } // Multi-Status
+			);
+		} else if (successful.length > 0) {
+			// Complete success
+			return NextResponse.json({
+				success: successful.map((f) => ({ name: f.name, url: f.url })),
+				failed: [],
+			});
+		} else {
+			// Complete failure
+			return NextResponse.json(
+				{
+					error: "All file uploads failed",
+					failed: failed.map((f) => ({
+						name: f.name || "Unknown",
+						error: f.error,
+					})),
+				},
+				{ status: 500 }
+			);
 		}
-
-		return NextResponse.json({
-			success: successful.map((f) => ({ name: f.name, url: f.url })),
-			failed: failed.map((f) => ({
-				name: f.name || "Unknown",
-				error: f.error,
-			})),
-		});
 	} catch (error) {
 		console.error("Server error:", error);
 		return NextResponse.json(

@@ -1,19 +1,7 @@
-import { createClient } from "../supabase/server";
-// Types
-export type FileNode = {
-	id: string;
-	name: string;
-	created_at: string;
-	size: number;
-	type: string; // MIME type
-};
+"use client";
+import { createClient } from "../supabase/client";
+import type { Folder } from "../types/type";
 
-export type FolderEntry = {
-	id: string;
-	name: string;
-	created_at: string;
-	type: "folder";
-};
 /**
  * Get folder breadcrumb path
  * @param folderId Current folder ID
@@ -21,11 +9,11 @@ export type FolderEntry = {
  */
 export const getFolderPath = async (
 	folderId: string | null
-): Promise<FolderEntry[]> => {
+): Promise<Folder[]> => {
 	if (!folderId) return [];
 
-	const supabase = await createClient();
-	const path: FolderEntry[] = [];
+	const supabase = createClient();
+	const path: Folder[] = [];
 
 	let currentId = folderId;
 

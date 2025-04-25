@@ -1,4 +1,8 @@
 "use client";
+import { useEffect, useState } from "react";
+import React from "react";
+
+import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
 	Download,
@@ -8,7 +12,10 @@ import {
 	Share2,
 	Trash2,
 	Loader2,
+	Home,
+	ChevronRight,
 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { FileUploadDialog } from "@/app/components";
 import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
@@ -37,10 +44,18 @@ import {
 } from "@/components/ui/table";
 import { useDriveStore } from "@/lib/store/drive-store";
 import type { DriveEntry } from "@/lib/types/type";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { getFolderPath } from "@/lib/actions/breadcrumb";
+import { Skeleton } from "@/components/ui/skeleton";
 
-import { useEffect, useState } from "react";
+// Add the Breadcrumb component imports
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { motion } from "framer-motion";
 
 const getEntryIcon = (entry: DriveEntry) => {
@@ -57,6 +72,32 @@ const Table = () => {
 	const folderId = path ? path[1] : null;
 	const { data, deleteFile, deleteFolder } = useDriveStore();
 	const [isLoading, setIsLoading] = useState(true);
+	const [breadcrumbs, setBreadcrumbs] = useState<
+		Array<{ id: string; name: string }>
+	>([]);
+	const [breadcrumbsLoading, setBreadcrumbsLoading] = useState(false);
+
+	// Fetch breadcrumb path when folder ID changes
+	useEffect(() => {
+		const fetchBreadcrumbs = async () => {
+			if (!folderId) {
+				setBreadcrumbs([]);
+				return;
+			}
+
+			setBreadcrumbsLoading(true);
+			try {
+				const path = await getFolderPath(folderId);
+				setBreadcrumbs(path);
+			} catch (error) {
+				console.error("Error fetching breadcrumbs:", error);
+			} finally {
+				setBreadcrumbsLoading(false);
+			}
+		};
+
+		fetchBreadcrumbs();
+	}, [folderId]);
 
 	// Set loading state to false after a short delay to simulate data fetching
 	useEffect(() => {
@@ -120,7 +161,45 @@ const Table = () => {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Drive</CardTitle>
+				<CardTitle>
+					{/* Breadcrumb Navigation inside CardTitle */}
+					<Breadcrumb>
+						<BreadcrumbList>
+							<BreadcrumbItem>
+								<BreadcrumbLink href="/drive" className="flex items-center">
+									<Home className="h-4 w-4 mr-1" />
+									Home
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+
+							{breadcrumbsLoading ? (
+								<BreadcrumbItem>
+									<Skeleton className="h-4 w-24" />
+								</BreadcrumbItem>
+							) : (
+								breadcrumbs.map((item, index) => (
+									<React.Fragment key={item.id}>
+										<BreadcrumbSeparator>
+											<ChevronRight className="h-4 w-4" />
+										</BreadcrumbSeparator>
+										<BreadcrumbItem>
+											{index === breadcrumbs.length - 1 ? (
+												<BreadcrumbPage className="font-bold">
+													{item.name}
+												</BreadcrumbPage>
+											) : (
+												<BreadcrumbLink href={`/drive/folders/${item.id}`}>
+													{item.name}
+												</BreadcrumbLink>
+											)}
+										</BreadcrumbItem>
+									</React.Fragment>
+								))
+							)}
+						</BreadcrumbList>
+					</Breadcrumb>
+				</CardTitle>
+
 				<CardAction>
 					<div className="flex gap-x-2">
 						<FileUploadDialog />
@@ -188,7 +267,9 @@ const Table = () => {
 										</div>
 									</TableCell>
 									<TableCell>
-										{entry?.size && `${Math.round(entry.size / 1024)} KB`}
+										{entry.type !== "folder" && entry.size
+											? `${Math.round(entry.size / 1024)} KB`
+											: ""}
 									</TableCell>
 									<TableCell>
 										{format(new Date(entry.created_at), "MMM d, yyyy")}
