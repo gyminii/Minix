@@ -278,10 +278,7 @@ export const useDriveStore = create<DriveState>((set, get) => ({
 
 					toast.info(`File deleted`);
 				}
-			)
-			.subscribe((status) => {
-				console.log("Subscription status:", status);
-			});
+			);
 
 		// Store the channel in window for cleanup
 		interface WindowWithChannel extends Window {

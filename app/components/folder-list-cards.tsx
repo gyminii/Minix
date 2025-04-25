@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -22,40 +24,40 @@ import {
 	Star,
 	Trash2,
 } from "lucide-react";
-
-interface Folder {
-	id: string;
-	name: string;
-	items: number;
-	starred: boolean;
-	lastModified: string;
-}
-
-const folders: Folder[] = [
-	{
-		id: "1",
-		name: "Documents",
-		items: 120,
-		starred: true,
-		lastModified: "10 days ago",
-	},
-	{
-		id: "2",
-		name: "Images",
-		items: 250,
-		starred: false,
-		lastModified: "2 days ago",
-	},
-	{
-		id: "4",
-		name: "Downloads",
-		items: 80,
-		starred: false,
-		lastModified: "Yesterday",
-	},
-];
+import { useDashboardStats } from "@/hooks/use-dashboard-stats";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
 
 export function FolderListCards() {
+	const { data, isLoading, error } = useDashboardStats();
+	const router = useRouter();
+
+	if (isLoading) {
+		return <FolderListCardsSkeleton />;
+	}
+
+	if (error) {
+		return (
+			<Card>
+				<CardContent className="p-6">
+					<p className="text-muted-foreground">Error loading folders</p>
+				</CardContent>
+			</Card>
+		);
+	}
+
+	const folders = data?.folderStats || [];
+
+	if (folders.length === 0) {
+		return (
+			<Card>
+				<CardContent className="p-6">
+					<p className="text-muted-foreground">No folders found</p>
+				</CardContent>
+			</Card>
+		);
+	}
+
 	return (
 		<div className="grid gap-4 md:grid-cols-3">
 			{folders.map((folder) => (
@@ -76,30 +78,36 @@ export function FolderListCards() {
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
+									<DropdownMenuItem
+										onClick={() => router.push(`/drive/folders/${folder.id}`)}
+									>
+										<Folder className="mr-2 h-4 w-4" />
+										<span>Open</span>
+									</DropdownMenuItem>
 									<DropdownMenuItem>
-										<Download />
+										<Download className="mr-2 h-4 w-4" />
 										<span>Download</span>
 									</DropdownMenuItem>
 									<DropdownMenuItem>
-										<Share2 />
+										<Share2 className="mr-2 h-4 w-4" />
 										<span>Share</span>
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
 									<DropdownMenuItem>
-										<Trash2 />
+										<Trash2 className="mr-2 h-4 w-4" />
 										<span>Delete</span>
 									</DropdownMenuItem>
 								</DropdownMenuContent>
 							</DropdownMenu>
 						</CardAction>
 					</CardHeader>
-					<CardContent className="spcae-y-4">
+					<CardContent className="space-y-4">
 						<div className="bg-muted rounded-md border px-4 py-2 text-sm">
 							{folder.items} items
 						</div>
 						<div className="flex items-center justify-between">
 							<div className="text-muted-foreground text-xs">
-								Last update: {folder.lastModified}
+								Last update: {folder.lastUpdate}
 							</div>
 							<Button variant="ghost" size="icon">
 								{folder.starred ? (
@@ -115,6 +123,32 @@ export function FolderListCards() {
 					</CardContent>
 				</Card>
 			))}
+		</div>
+	);
+}
+
+function FolderListCardsSkeleton() {
+	return (
+		<div className="grid gap-4 md:grid-cols-3">
+			{Array(3)
+				.fill(0)
+				.map((_, i) => (
+					<Card key={i}>
+						<CardHeader>
+							<Skeleton className="h-6 w-24" />
+							<CardAction>
+								<Skeleton className="h-8 w-8 rounded-full" />
+							</CardAction>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<Skeleton className="h-8 w-full" />
+							<div className="flex items-center justify-between">
+								<Skeleton className="h-4 w-32" />
+								<Skeleton className="h-8 w-8 rounded-full" />
+							</div>
+						</CardContent>
+					</Card>
+				))}
 		</div>
 	);
 }

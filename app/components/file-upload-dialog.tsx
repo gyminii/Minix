@@ -32,6 +32,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useUploadFiles } from "@/hooks/use-upload-files";
+import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 
 interface FileUploadDropzoneProps {
 	maxFiles?: number;
@@ -109,11 +110,63 @@ export function FileUploadDialog({
 	maxFiles = 10,
 	maxSize = 4 * 1024 * 1024, // 4MB
 	accept = {
-		"image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
+		// Documents
+		"application/pdf": [".pdf"],
+		"application/msword": [".doc"],
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+			".docx",
+		],
+		"application/vnd.oasis.opendocument.text": [".odt"],
+		"application/rtf": [".rtf"],
+		"text/plain": [".txt"],
+		"text/markdown": [".md"],
+		// Spreadsheets
+		"application/vnd.ms-excel": [".xls"],
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+			".xlsx",
+		],
+		"application/vnd.oasis.opendocument.spreadsheet": [".ods"],
+		"text/csv": [".csv"],
+		// Presentations
+		"application/vnd.ms-powerpoint": [".ppt"],
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation":
+			[".pptx"],
+		"application/vnd.oasis.opendocument.presentation": [".odp"],
+		// Images
+		"image/*": [
+			".jpeg",
+			".jpg",
+			".png",
+			".gif",
+			".svg",
+			".webp",
+			".tiff",
+			".bmp",
+		],
+		// Videos
+		"video/*": [
+			".mp4",
+			".mov",
+			".avi",
+			".mkv",
+			".wmv",
+			".flv",
+			".webm",
+			".m4v",
+			".mpeg",
+		],
+		// Audio
+		"audio/*": [".mp3", ".wav", ".ogg", ".m4a", ".flac"],
+		// Archives
+		"application/zip": [".zip"],
+		"application/x-rar-compressed": [".rar"],
+		"application/x-7z-compressed": [".7z"],
+		"application/gzip": [".tar.gz"],
 	},
 	onUpload,
 }: FileUploadDropzoneProps) {
 	const { mutate: uploadFiles, isPending } = useUploadFiles();
+	const { refreshDashboardStats } = useDashboardStats();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
 	console.log(folderId, path);
@@ -254,10 +307,10 @@ export function FileUploadDialog({
 						{ files: data.files, folderId: folderId },
 						{
 							onSuccess: (res) => {
-								console.log("Upload success:", res.success);
 								if (res.failed.length) console.log("Failed:", res.failed);
 								reset();
 								setOpen(false);
+								refreshDashboardStats();
 							},
 							onError: (err) => {
 								console.error("Upload error:", err);
@@ -270,7 +323,7 @@ export function FileUploadDialog({
 				console.error(error);
 			}
 		},
-		[onUpload, folderId, uploadFiles, reset]
+		[onUpload, folderId, uploadFiles, reset, refreshDashboardStats]
 	);
 
 	return (
