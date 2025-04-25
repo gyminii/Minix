@@ -9,16 +9,13 @@ import Table from "../table";
 const DriveClient = () => {
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
-
 	const { setData, setCurrentFolder, setupSubscriptions, cleanup } =
 		useDriveStore();
-	// Set up React Query for data fetching
 	const { data: initialData = [] } = useQuery({
 		queryKey: ["drive", folderId],
 		queryFn: async () => await readDrive({ folderId }),
 		staleTime: 1000 * 60,
 	});
-	console.log("INITIALDATA: ", initialData);
 	useEffect(() => {
 		console.log("setData in drive-client", folderId);
 		if (initialData) {
@@ -36,7 +33,7 @@ const DriveClient = () => {
 		cleanup,
 	]);
 
-	return <Table folderId={folderId} />;
+	return <Table />;
 };
 
 export default DriveClient;

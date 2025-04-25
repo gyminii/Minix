@@ -44,11 +44,11 @@ const getEntryIcon = (entry: DriveEntry) => {
 	}
 	return <File className="h-4 w-4 mr-2" />;
 };
-const Table = ({ folderId }: { folderId?: string | null }) => {
+const Table = () => {
 	const queryClient = useQueryClient();
 	const router = useRouter();
-	const { ...params } = useParams();
-	console.log(params);
+	const { path } = useParams();
+	const folderId = path ? path[1] : null;
 	const { data, deleteFile, deleteFolder } = useDriveStore();
 	// Set up delete folder mutation
 	const deleteFolderMutation = useMutation({

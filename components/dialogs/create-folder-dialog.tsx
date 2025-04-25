@@ -64,7 +64,7 @@ const CreateFolderDialog = () => {
 			}
 			return result;
 		},
-		onSuccess: (data, variables, context) => {
+		onSuccess: () => {
 			reset();
 			setOpen(false);
 		},
