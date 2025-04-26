@@ -19,9 +19,17 @@ export async function POST(req: Request) {
 		const formData = await req.formData();
 		const files = formData.getAll("files") as File[];
 		const folderId = formData.get("folder_id") as string | null;
+
+		console.log(
+			`API: Processing ${files.length} files for folder_id: ${
+				folderId || "root"
+			}`
+		);
+
 		if (!files || files.length === 0) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
 		}
+
 		const uploads = await Promise.all(
 			files.map(async (file) => {
 				try {
@@ -58,8 +66,8 @@ export async function POST(req: Request) {
 						.from("minix")
 						.createSignedUrl(filePath, 604800);
 
-					// Return complete metadata object
-					return {
+					// Create file metadata object
+					const fileMetadata = {
 						name: file.name,
 						path: filePath,
 						size: file.size,
@@ -68,6 +76,26 @@ export async function POST(req: Request) {
 						user_id: user.id,
 						url: data ? data.signedUrl : null,
 					};
+
+					// Insert file metadata into the database
+					const { data: insertedFile, error: insertError } = await client
+						.from("files")
+						.insert(fileMetadata)
+						.select()
+						.single();
+
+					if (insertError) {
+						console.error("Database insert error:", insertError);
+						return {
+							error: `Storage upload succeeded but database insert failed: ${insertError.message}`,
+							name: file.name,
+						};
+					}
+
+					console.log(`Successfully uploaded and inserted file: ${file.name}`);
+
+					// Return the inserted file data
+					return insertedFile;
 				} catch (err) {
 					console.error("Error processing file:", err);
 					return {
@@ -85,8 +113,7 @@ export async function POST(req: Request) {
 				upload.name &&
 				upload.path &&
 				upload.size &&
-				upload.type &&
-				upload.user_id
+				upload.type
 		);
 
 		const failed = uploads.filter((upload) => upload.error || !upload.name);
@@ -109,6 +136,12 @@ export async function POST(req: Request) {
 			);
 		} else if (successful.length > 0) {
 			// Complete success
+			console.log(
+				`API: Successfully uploaded ${successful.length} files to folder: ${
+					folderId || "root"
+				}`
+			);
+
 			return NextResponse.json({
 				success: successful.map((f) => ({ name: f.name, url: f.url })),
 				failed: [],
