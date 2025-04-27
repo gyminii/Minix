@@ -1,9 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { type UseSupabaseUploadReturn } from "@/hooks/use-supabase-upload";
+import type { UseSupabaseUploadReturn } from "@/hooks/use-supabase-upload";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, File, Loader2, Upload, X } from "lucide-react";
+import Image from "next/image";
 import {
 	createContext,
 	type PropsWithChildren,
@@ -27,7 +28,9 @@ export const formatBytes = (
 		size !== undefined
 			? sizes.indexOf(size)
 			: Math.floor(Math.log(bytes) / Math.log(k));
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+	return (
+		Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+	);
 };
 
 type DropzoneContextType = Omit<
@@ -134,10 +137,14 @@ const DropzoneContent = ({ className }: { className?: string }) => {
 					>
 						{file.type.startsWith("image/") ? (
 							<div className="h-10 w-10 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
-								<img
-									src={file.preview}
+								{/* Replace img with Next.js Image component */}
+								<Image
+									src={file.preview || "/placeholder.svg"}
 									alt={file.name}
 									className="object-cover"
+									width={40}
+									height={40}
+									unoptimized // Use unoptimized for blob URLs
 								/>
 							</div>
 						) : (

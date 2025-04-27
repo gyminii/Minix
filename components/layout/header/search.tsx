@@ -1,36 +1,22 @@
 "use client";
 
-import React from "react";
-import { CommandIcon, SearchIcon, icons } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { CommandIcon, SearchIcon } from "lucide-react";
 // import { page_routes } from "@/lib/routes-config";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
 	CommandDialog,
 	CommandEmpty,
-	CommandGroup,
 	CommandInput,
-	CommandItem,
 	CommandList,
-	CommandSeparator,
 } from "@/components/ui/command";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-type CommandItemProps = {
-	item: {
-		title: string;
-		href: string;
-		icon?: string;
-	};
-};
-
 export default function Search() {
 	const [open, setOpen] = useState(false);
-	const router = useRouter();
 
 	useEffect(() => {
 		const down = (e: KeyboardEvent) => {
@@ -42,23 +28,6 @@ export default function Search() {
 		document.addEventListener("keydown", down);
 		return () => document.removeEventListener("keydown", down);
 	}, []);
-
-	const CommandItemComponent: React.FC<CommandItemProps> = ({ item }) => {
-		// @ts-expect-error
-		const LucideIcon = icons[item.icon];
-
-		return (
-			<CommandItem
-				onSelect={() => {
-					setOpen(false);
-					router.push(item.href);
-				}}
-			>
-				{item.icon && <LucideIcon className="me-2 h-4! w-4!" />}
-				<span>{item.title}</span>
-			</CommandItem>
-		);
-	};
 
 	return (
 		<div className="ms-auto lg:me-auto lg:flex-1">

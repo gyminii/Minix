@@ -9,22 +9,21 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useGetCurrentUser } from "@/hooks/use-get-current-user";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useLogout } from "@/hooks/use-logout";
 
 export default function UserMenu() {
 	const user = useGetCurrentUser();
-	const { mutate: logout, isPending } = useLogout();
+	const { mutate: logout } = useLogout();
+	const avatarurl = user?.user_metadata.avatar_url;
+	console.log(avatarurl);
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Avatar>
-					{/* <AvatarImage
-						src={`${process.env.ASSETS_URL}/avatars/01.png`}
-						alt="shadcn ui kit"
-					/> */}
-					<AvatarFallback className="rounded-lg">TB</AvatarFallback>
+					<AvatarImage src={avatarurl} alt="shadcn ui kit" />
+					<AvatarFallback className="rounded-lg">
+						{user?.user_metadata.name?.substring(0, 2)}
+					</AvatarFallback>
 				</Avatar>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
@@ -38,7 +37,9 @@ export default function UserMenu() {
 								src={`${process.env.ASSETS_URL}/avatars/01.png`}
 								alt="shadcn ui kit"
 							/>
-							<AvatarFallback className="rounded-lg">CN</AvatarFallback>
+							<AvatarFallback className="rounded-lg">
+								{user?.user_metadata.name?.substring(0, 2)}
+							</AvatarFallback>
 						</Avatar>
 						<div className="grid flex-1 text-left text-sm leading-tight">
 							<span className="truncate font-semibold">

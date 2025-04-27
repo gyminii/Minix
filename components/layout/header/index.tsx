@@ -1,14 +1,11 @@
 "use client";
 
-import * as React from "react";
 import { PanelLeftIcon } from "lucide-react";
 
-import { useSidebar } from "@/components/ui/sidebar";
-import Search from "@/components/layout/header/search";
-import UserMenu from "@/components/layout/header/user-menu";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
-import Notifications from "@/components/layout/header/notifications";
+import UserMenu from "@/components/layout/header/user-menu";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export default function Header() {
 	const { toggleSidebar } = useSidebar();

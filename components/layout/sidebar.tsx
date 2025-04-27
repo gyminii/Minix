@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect } from "react";
 // import { page_routes } from "@/lib/routes-config";
 import { useIsTablet } from "@/hooks/use-mobile";
 import {
@@ -51,7 +51,6 @@ export default function Sidebar() {
 	const pathname = usePathname();
 	const { setOpen, setOpenMobile, isMobile } = useSidebar();
 	const isTablet = useIsTablet();
-	const [mode, setMode] = useState("");
 
 	useEffect(() => {
 		if (isMobile) setOpenMobile(false);
@@ -83,7 +82,7 @@ export default function Sidebar() {
 								</SidebarMenuButton>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent className="w-(--radix-popper-anchor-width)">
-								<DropdownMenuItem onClick={() => setMode("New Folder")}>
+								<DropdownMenuItem>
 									<FolderPlus />
 									<span>New Folder</span>
 								</DropdownMenuItem>

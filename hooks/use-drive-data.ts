@@ -42,7 +42,7 @@ export function useDriveData(folderId: string | null) {
 			}
 			return response.json();
 		},
-		staleTime: 1000 * 30, // 30 seconds
+		staleTime: 10 * (60 * 1000),
 	});
 
 	// Set up Supabase realtime subscriptions - this is still needed to trigger React Query refetches

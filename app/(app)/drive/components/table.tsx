@@ -1,21 +1,19 @@
 "use client";
-import { useEffect, useState } from "react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
+	ChevronRight,
 	Download,
 	File,
 	Folder,
+	Home,
+	Loader2,
 	MoreHorizontal,
 	Share2,
 	Trash2,
-	Loader2,
-	Home,
-	ChevronRight,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
 
 import { FileUploadDialog } from "@/app/components";
 import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
@@ -34,6 +32,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table as DataTable,
 	TableBody,
@@ -42,9 +41,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type { DriveEntry } from "@/lib/types/type";
 import { getFolderPath } from "@/lib/actions/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
+import type { DriveEntry } from "@/lib/types/type";
 
 // Add the Breadcrumb component imports
 import {
@@ -55,8 +53,8 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { motion } from "framer-motion";
 import type { Folder as FolderType } from "@/lib/types/type";
+import { motion } from "framer-motion";
 
 // Add props type definition
 type TableProps = {
@@ -66,7 +64,13 @@ type TableProps = {
 	createFolder: (name: string) => Promise<FolderType | null>;
 	deleteFolder: (folderId: string) => Promise<boolean>;
 	deleteFile: (fileId: string) => Promise<boolean>;
-	uploadFiles?: (files: File[], targetFolderId?: string | null) => Promise<any>;
+	uploadFiles?: (
+		files: File[],
+		targetFolderId?: string | null
+	) => Promise<{
+		success?: Array<{ name: string; url: string | null }>;
+		failed?: Array<{ name: string; error: string }>;
+	}>;
 	isUploading?: boolean;
 	isCreatingFolder?: boolean;
 	isDeletingFolder?: boolean;
@@ -83,17 +87,11 @@ const getEntryIcon = (entry: DriveEntry) => {
 const Table = ({
 	data,
 	isLoading,
-	error,
-	createFolder,
 	deleteFolder,
 	deleteFile,
-	uploadFiles,
-	isUploading,
-	isCreatingFolder,
 	isDeletingFolder,
 	isDeletingFile,
 }: TableProps) => {
-	const queryClient = useQueryClient();
 	const router = useRouter();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
@@ -101,7 +99,6 @@ const Table = ({
 		Array<{ id: string; name: string }>
 	>([]);
 	const [breadcrumbsLoading, setBreadcrumbsLoading] = useState(false);
-	const [isLoadingState, setIsLoading] = useState(true);
 
 	// Fetch breadcrumb path when folder ID changes
 	useEffect(() => {
@@ -125,24 +122,24 @@ const Table = ({
 		fetchBreadcrumbs();
 	}, [folderId]);
 
-	// Reset loading state when folder ID changes
-	useEffect(() => {
-		setIsLoading(true);
-	}, [folderId]);
+	// // Reset loading state when folder ID changes
+	// useEffect(() => {
+	// 	setIsLoading(true);
+	// }, [folderId]);
 
-	// Set up periodic refetch as a fallback
-	useEffect(() => {
-		if (data && data.length > 0) {
-			// Data has loaded, reset loading state
-			setIsLoading(false);
-		}
+	// // Set up periodic refetch as a fallback
+	// useEffect(() => {
+	// 	if (data && data.length > 0) {
+	// 		// Data has loaded, reset loading state
+	// 		setIsLoading(false);
+	// 	}
 
-		const intervalId = setInterval(() => {
-			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
-		}, 5000); // Refetch every 5 seconds as a fallback
+	// 	const intervalId = setInterval(() => {
+	// 		queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
+	// 	}, 5000); // Refetch every 5 seconds as a fallback
 
-		return () => clearInterval(intervalId);
-	}, [data, queryClient, folderId]);
+	// 	return () => clearInterval(intervalId);
+	// }, [data, queryClient, folderId]);
 
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {

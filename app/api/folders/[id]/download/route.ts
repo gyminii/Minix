@@ -1,13 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
-
+// Define the correct parameter types for Next.js App Router
 export async function GET(
-	request: Request,
-	{ params }: { params: { id: string } }
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
 ) {
 	try {
-		const folderId = params.id;
+		const folderId = (await context.params)?.id;
 		if (!folderId) {
 			return NextResponse.json(
 				{ error: "Folder ID is required" },

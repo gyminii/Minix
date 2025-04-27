@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	AlertCircle,
 	CheckCircle,
@@ -10,6 +10,9 @@ import {
 	Upload,
 	UploadIcon,
 	X,
+	Camera,
+	Smartphone,
+	FilePlus2Icon as FileIcon2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -33,6 +36,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useDriveData } from "@/hooks/use-drive-data";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
+import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FileUploadDropzoneProps {
 	maxFiles?: number;
@@ -108,7 +113,7 @@ const getFileTypeIcon = (type: string) => {
 
 export function FileUploadDialog({
 	maxFiles = 10,
-	maxSize = 10 * 1024 * 1024, // 4MB
+	maxSize = 10 * 1024 * 1024, // 10MB
 	accept = {
 		// Documents
 		"application/pdf": [".pdf"],
@@ -164,6 +169,8 @@ export function FileUploadDialog({
 		"application/gzip": [".tar.gz"],
 	},
 }: FileUploadDropzoneProps) {
+	// Using the existing useIsMobile hook
+	const isMobile = useIsMobile();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
 	const { uploadFiles, isUploading: isPending } = useDriveData(folderId);
@@ -184,9 +191,9 @@ export function FileUploadDialog({
 	});
 
 	const [files, previews] = watch(["files", "previews"]);
-
 	const [open, setOpen] = useState(false);
 	const [fileRejections, setFileRejections] = useState<FileRejection[]>([]);
+	const [activeTab, setActiveTab] = useState<string>("browse");
 
 	const onDrop = useCallback(
 		(acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
@@ -269,7 +276,7 @@ export function FileUploadDialog({
 	const dropzoneStyle = useMemo(
 		() =>
 			cn(
-				"border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 border-primary/30 bg-accent/20",
+				"border-2 border-dashed rounded-xl p-6 md:p-10 text-center cursor-pointer transition-all duration-200 border-primary/30 bg-accent/20",
 				"hover:border-primary/50 hover:bg-accent/30",
 				isDragActive && "border-primary/70 bg-accent/40 scale-[1.01]",
 				isDragAccept && "border-primary bg-accent/50 scale-[1.02]",
@@ -311,6 +318,45 @@ export function FileUploadDialog({
 		[folderId, uploadFiles, refreshDashboardStats, reset, setOpen]
 	);
 
+	// Handle camera capture
+	const handleCameraCapture = () => {
+		// Create a file input element with camera capture
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = "image/*";
+		input.capture = "environment"; // Use "user" for front camera
+
+		// Handle file selection
+		input.onchange = (e) => {
+			const target = e.target as HTMLInputElement;
+			if (target.files && target.files.length > 0) {
+				onDrop(Array.from(target.files), []);
+			}
+		};
+
+		// Trigger the file input
+		input.click();
+	};
+
+	// Handle document capture
+	const handleDocumentCapture = () => {
+		// Create a file input element for document capture
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = "application/pdf,image/*";
+
+		// Handle file selection
+		input.onchange = (e) => {
+			const target = e.target as HTMLInputElement;
+			if (target.files && target.files.length > 0) {
+				onDrop(Array.from(target.files), []);
+			}
+		};
+
+		// Trigger the file input
+		input.click();
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
@@ -323,7 +369,7 @@ export function FileUploadDialog({
 				</Button>
 			</DialogTrigger>
 			<DialogContent
-				className="min-w-xl"
+				className="sm:max-w-md md:min-w-xl"
 				onInteractOutside={(e) => e.preventDefault()}
 			>
 				<DialogHeader>
@@ -331,7 +377,9 @@ export function FileUploadDialog({
 						Upload Files
 					</DialogTitle>
 					<DialogDescription className="text-muted-foreground">
-						Drag and drop files or click to browse
+						{isMobile
+							? "Select files from your device"
+							: "Drag and drop files or click to browse"}
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit(onSubmit)}>
@@ -354,30 +402,96 @@ export function FileUploadDialog({
 							</Alert>
 						)}
 
-						<div {...getRootProps()} className={dropzoneStyle}>
-							<input {...getInputProps()} />
-							<div className="flex flex-col items-center justify-center gap-y-3">
-								<div className="rounded-full bg-primary/10 p-4 text-primary">
-									<UploadIcon className="h-8 w-8" />
+						{isMobile ? (
+							<Tabs
+								defaultValue="browse"
+								className="w-full"
+								value={activeTab}
+								onValueChange={setActiveTab}
+							>
+								<TabsList className="grid w-full grid-cols-3">
+									<TabsTrigger value="browse">Browse</TabsTrigger>
+									<TabsTrigger value="camera">Camera</TabsTrigger>
+									<TabsTrigger value="document">Document</TabsTrigger>
+								</TabsList>
+								<TabsContent value="browse" className="mt-4">
+									<div className="flex flex-col items-center justify-center gap-y-3 p-6 border-2 border-dashed rounded-xl border-primary/30 bg-accent/20">
+										<div className="rounded-full bg-primary/10 p-4 text-primary">
+											<Smartphone className="h-8 w-8" />
+										</div>
+										<p className="text-lg font-medium">
+											Select files from your device
+										</p>
+										<Button
+											type="button"
+											variant="secondary"
+											className="mt-2 transition-all duration-200 w-full"
+											onClick={openFileDialog}
+										>
+											Browse files
+										</Button>
+										<input {...getInputProps()} />
+									</div>
+								</TabsContent>
+								<TabsContent value="camera" className="mt-4">
+									<div className="flex flex-col items-center justify-center gap-y-3 p-6 border-2 border-dashed rounded-xl border-primary/30 bg-accent/20">
+										<div className="rounded-full bg-primary/10 p-4 text-primary">
+											<Camera className="h-8 w-8" />
+										</div>
+										<p className="text-lg font-medium">Take a photo</p>
+										<Button
+											type="button"
+											variant="secondary"
+											className="mt-2 transition-all duration-200 w-full"
+											onClick={handleCameraCapture}
+										>
+											Open Camera
+										</Button>
+									</div>
+								</TabsContent>
+								<TabsContent value="document" className="mt-4">
+									<div className="flex flex-col items-center justify-center gap-y-3 p-6 border-2 border-dashed rounded-xl border-primary/30 bg-accent/20">
+										<div className="rounded-full bg-primary/10 p-4 text-primary">
+											<FileIcon2 className="h-8 w-8" />
+										</div>
+										<p className="text-lg font-medium">Scan a document</p>
+										<Button
+											type="button"
+											variant="secondary"
+											className="mt-2 transition-all duration-200 w-full"
+											onClick={handleDocumentCapture}
+										>
+											Select Document
+										</Button>
+									</div>
+								</TabsContent>
+							</Tabs>
+						) : (
+							<div {...getRootProps()} className={dropzoneStyle}>
+								<input {...getInputProps()} />
+								<div className="flex flex-col items-center justify-center gap-y-3">
+									<div className="rounded-full bg-primary/10 p-4 text-primary">
+										<UploadIcon className="h-8 w-8" />
+									</div>
+									<p className="text-lg font-medium">Drag & drop files here</p>
+									<p className="text-sm text-muted-foreground">
+										Or click to browse (max {maxFiles} files, up to{" "}
+										{maxSize / (1024 * 1024)}MB each)
+									</p>
+									<Button
+										type="button"
+										variant="secondary"
+										className="mt-2 transition-all duration-200"
+										onClick={(e) => {
+											e.stopPropagation();
+											openFileDialog();
+										}}
+									>
+										Browse files
+									</Button>
 								</div>
-								<p className="text-lg font-medium">Drag & drop files here</p>
-								<p className="text-sm text-muted-foreground">
-									Or click to browse (max {maxFiles} files, up to{" "}
-									{maxSize / (1024 * 1024)}MB each)
-								</p>
-								<Button
-									type="button"
-									variant="secondary"
-									className="mt-2 transition-all duration-200"
-									onClick={(e) => {
-										e.stopPropagation();
-										openFileDialog();
-									}}
-								>
-									Browse files
-								</Button>
 							</div>
-						</div>
+						)}
 
 						<Controller
 							name="previews"
@@ -389,7 +503,7 @@ export function FileUploadDialog({
 											<h3 className="text-sm font-medium text-muted-foreground">
 												Files to Upload
 											</h3>
-											<ScrollArea className="space-y-2 h-[250px] w-full gap-y-2">
+											<ScrollArea className="space-y-2 h-[200px] md:h-[250px] w-full gap-y-2">
 												{field.value.map((file, index) => (
 													<div
 														key={file.id}
@@ -397,12 +511,15 @@ export function FileUploadDialog({
 													>
 														<div className="h-10 w-10 rounded-md overflow-hidden shrink-0 bg-muted flex items-center justify-center">
 															{file.type.startsWith("image/") ? (
-																<img
+																<Image
 																	src={file.preview || "/placeholder.svg"}
 																	alt={file.name}
+																	width={40}
+																	height={40}
 																	className="h-full w-full object-cover"
+																	unoptimized
 																	onLoad={() => {
-																		// Don't revoke during load as we need it later
+																		// Do not revoke preview here
 																	}}
 																/>
 															) : (
@@ -446,18 +563,18 @@ export function FileUploadDialog({
 							)}
 						/>
 					</div>
-					<DialogFooter>
+					<DialogFooter className="flex flex-col sm:flex-row gap-2">
 						<Button
 							type="button"
 							variant="outline"
 							onClick={() => setOpen(false)}
-							className="transition-all duration-200 hover:bg-muted"
+							className="transition-all duration-200 hover:bg-muted w-full sm:w-auto"
 						>
 							Close
 						</Button>
 						<Button
 							type="submit"
-							className="transition-all duration-200"
+							className="transition-all duration-200 w-full sm:w-auto"
 							disabled={files.length <= 0 || isPending || isSubmitting}
 						>
 							{isPending || isSubmitting ? (
