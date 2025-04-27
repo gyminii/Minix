@@ -3,16 +3,33 @@ import {
 	QueryClient,
 	QueryClientProvider as ReactQueryProvider,
 } from "@tanstack/react-query";
-
-import React, { ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 
 type Props = {
 	children: ReactNode;
 };
 
 const QueryClientProvider = ({ children }: Props) => {
-	const client = new QueryClient();
-	return <ReactQueryProvider client={client}>{children}</ReactQueryProvider>;
+	const [queryClient] = useState(
+		() =>
+			new QueryClient({
+				defaultOptions: {
+					queries: {
+						staleTime: 100000 * 60,
+						retry: 1,
+						refetchOnWindowFocus: true,
+					},
+					mutations: {
+						retry: 1,
+					},
+				},
+			})
+	);
+
+	return (
+		<ReactQueryProvider client={queryClient}>{children}</ReactQueryProvider>
+	);
 };
 
 export default QueryClientProvider;

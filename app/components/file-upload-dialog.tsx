@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useUploadFiles } from "@/hooks/use-upload-files";
+import { useDriveData } from "@/hooks/use-drive-data";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 
 interface FileUploadDropzoneProps {
@@ -164,10 +164,10 @@ export function FileUploadDialog({
 		"application/gzip": [".tar.gz"],
 	},
 }: FileUploadDropzoneProps) {
-	const { mutate: uploadFiles, isPending } = useUploadFiles();
-	const { refreshDashboardStats } = useDashboardStats();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
+	const { uploadFiles, isUploading: isPending } = useDriveData(folderId);
+	const { refreshDashboardStats } = useDashboardStats();
 	const {
 		control,
 		handleSubmit,
@@ -296,28 +296,19 @@ export function FileUploadDialog({
 	const onSubmit = useCallback(
 		async (data: UploadFormValues) => {
 			try {
-				uploadFiles(
-					{ files: data.files, folderId: folderId },
-					{
-						onSuccess: (res) => {
-							// refreshDashboardStats();
-							if (res.failed.length) console.log("Failed:", res.failed);
-							refreshDashboardStats();
+				// Call uploadFiles with just the files and folderId
+				await uploadFiles(data.files, folderId);
 
-							reset();
-							setOpen(false);
-						},
-						onError: (err) => {
-							console.error("Upload error:", err);
-							setOpen(false);
-						},
-					}
-				);
+				// These actions happen after successful upload
+				refreshDashboardStats();
+				reset();
+				setOpen(false);
 			} catch (error) {
-				console.error(error);
+				console.error("Upload error:", error);
+				// Keep dialog open on error so user can retry
 			}
 		},
-		[folderId, uploadFiles, reset, refreshDashboardStats]
+		[folderId, uploadFiles, refreshDashboardStats, reset, setOpen]
 	);
 
 	return (

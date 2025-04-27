@@ -93,13 +93,43 @@ export function FolderListCards() {
 
 			return response.json();
 		},
+		onMutate: async (folderId) => {
+			// Cancel any outgoing refetches
+			await queryClient.cancelQueries({ queryKey: ["dashboard-stats"] });
+
+			// Snapshot the previous value
+			const previousData = queryClient.getQueryData(["dashboard-stats"]);
+
+			// Optimistically update to the new value
+			queryClient.setQueryData(["dashboard-stats"], (old: any) => {
+				if (!old || !old.folderStats) return old;
+				return {
+					...old,
+					folderStats: old.folderStats.filter(
+						(folder: any) => folder.id !== folderId
+					),
+				};
+			});
+
+			return { previousData };
+		},
 		onSuccess: () => {
 			toast.success("Folder deleted successfully");
+
+			// Invalidate and refetch all relevant queries
 			queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 			queryClient.invalidateQueries({ queryKey: ["drive"] });
 			refreshDashboardStats();
+
+			setDeleteDialogOpen(false);
+			setFolderToDelete(null);
 		},
-		onError: (error) => {
+		onError: (error, _, context) => {
+			// If the mutation fails, use the context returned from onMutate to roll back
+			if (context?.previousData) {
+				queryClient.setQueryData(["dashboard-stats"], context.previousData);
+			}
+
 			toast.error(
 				`Error deleting folder: ${
 					error instanceof Error ? error.message : "Unknown error"

@@ -1,38 +1,42 @@
 "use client";
-import { readDrive } from "@/lib/actions/read-drive";
-import { useDriveStore } from "@/lib/store/drive-store";
-import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
 import Table from "../table";
+import { useDriveData } from "@/hooks/use-drive-data";
 
 const DriveClient = () => {
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
-	const { setData, setCurrentFolder, setupSubscriptions, cleanup } =
-		useDriveStore();
-	const { data: initialData = [] } = useQuery({
-		queryKey: ["drive", folderId],
-		queryFn: async () => await readDrive({ folderId }),
-		staleTime: 1000 * 60,
-	});
-	useEffect(() => {
-		if (initialData) {
-			setData(initialData);
-			setCurrentFolder(folderId);
-			setupSubscriptions();
-		}
-		return () => cleanup();
-	}, [
-		initialData,
-		folderId,
-		setData,
-		setCurrentFolder,
-		setupSubscriptions,
-		cleanup,
-	]);
 
-	return <Table />;
+	// Use our enhanced hook that combines React Query with Supabase realtime
+	const {
+		data,
+		isLoading,
+		error,
+		createFolder,
+		deleteFolder,
+		deleteFile,
+		uploadFiles,
+		isUploading,
+		isCreatingFolder,
+		isDeletingFolder,
+		isDeletingFile,
+	} = useDriveData(folderId);
+
+	return (
+		<Table
+			data={data || []}
+			isLoading={isLoading}
+			error={error}
+			createFolder={createFolder}
+			deleteFolder={deleteFolder}
+			deleteFile={deleteFile}
+			uploadFiles={uploadFiles}
+			isUploading={isUploading}
+			isCreatingFolder={isCreatingFolder}
+			isDeletingFolder={isDeletingFolder}
+			isDeletingFile={isDeletingFile}
+		/>
+	);
 };
 
 export default DriveClient;

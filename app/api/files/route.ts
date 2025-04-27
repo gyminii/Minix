@@ -30,6 +30,7 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
 		}
 
+		// Process uploads
 		const uploads = await Promise.all(
 			files.map(async (file) => {
 				try {
@@ -66,8 +67,32 @@ export async function POST(req: Request) {
 						.from("minix")
 						.createSignedUrl(filePath, 604800);
 
-					// Create file metadata object
-					const fileMetadata = {
+					// Insert file metadata into database
+					const { data: fileData, error: dbError } = await client
+						.from("files")
+						.insert({
+							name: file.name,
+							path: filePath,
+							size: file.size,
+							type: file.type,
+							folder_id: folderId,
+							user_id: user.id,
+							url: data ? data.signedUrl : null,
+						})
+						.select()
+						.single();
+
+					if (dbError) {
+						console.error("Database error:", dbError);
+						return {
+							error: dbError.message,
+							name: file.name,
+						};
+					}
+
+					// Return complete metadata object
+					return {
+						...fileData,
 						name: file.name,
 						path: filePath,
 						size: file.size,
@@ -76,26 +101,6 @@ export async function POST(req: Request) {
 						user_id: user.id,
 						url: data ? data.signedUrl : null,
 					};
-
-					// Insert file metadata into the database
-					const { data: insertedFile, error: insertError } = await client
-						.from("files")
-						.insert(fileMetadata)
-						.select()
-						.single();
-
-					if (insertError) {
-						console.error("Database insert error:", insertError);
-						return {
-							error: `Storage upload succeeded but database insert failed: ${insertError.message}`,
-							name: file.name,
-						};
-					}
-
-					console.log(`Successfully uploaded and inserted file: ${file.name}`);
-
-					// Return the inserted file data
-					return insertedFile;
 				} catch (err) {
 					console.error("Error processing file:", err);
 					return {
@@ -113,7 +118,8 @@ export async function POST(req: Request) {
 				upload.name &&
 				upload.path &&
 				upload.size &&
-				upload.type
+				upload.type &&
+				upload.user_id
 		);
 
 		const failed = uploads.filter((upload) => upload.error || !upload.name);
@@ -141,6 +147,20 @@ export async function POST(req: Request) {
 					folderId || "root"
 				}`
 			);
+
+			// Add a longer delay to ensure Supabase has time to process the changes
+			await new Promise((resolve) => setTimeout(resolve, 500));
+
+			// Manually trigger a database update to ensure realtime events fire
+			// This is a workaround for cases where realtime events might not be triggered properly
+			for (const file of successful) {
+				// Update the file's updated_at timestamp to trigger a realtime event
+				await client
+					.from("files")
+					.update({ updated_at: new Date().toISOString() })
+					.eq("path", file.path)
+					.eq("user_id", user.id);
+			}
 
 			return NextResponse.json({
 				success: successful.map((f) => ({ name: f.name, url: f.url })),

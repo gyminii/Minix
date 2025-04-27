@@ -15,7 +15,7 @@ import {
 	Home,
 	ChevronRight,
 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { FileUploadDialog } from "@/app/components";
 import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
@@ -42,7 +42,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useDriveStore } from "@/lib/store/drive-store";
 import type { DriveEntry } from "@/lib/types/type";
 import { getFolderPath } from "@/lib/actions/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,6 +56,22 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { motion } from "framer-motion";
+import type { Folder as FolderType } from "@/lib/types/type";
+
+// Add props type definition
+type TableProps = {
+	data: DriveEntry[];
+	isLoading: boolean;
+	error: Error | null;
+	createFolder: (name: string) => Promise<FolderType | null>;
+	deleteFolder: (folderId: string) => Promise<boolean>;
+	deleteFile: (fileId: string) => Promise<boolean>;
+	uploadFiles?: (files: File[], targetFolderId?: string | null) => Promise<any>;
+	isUploading?: boolean;
+	isCreatingFolder?: boolean;
+	isDeletingFolder?: boolean;
+	isDeletingFile?: boolean;
+};
 
 const getEntryIcon = (entry: DriveEntry) => {
 	if (entry.type === "folder") {
@@ -65,17 +80,28 @@ const getEntryIcon = (entry: DriveEntry) => {
 	return <File className="h-4 w-4 mr-2" />;
 };
 
-const Table = () => {
+const Table = ({
+	data,
+	isLoading,
+	error,
+	createFolder,
+	deleteFolder,
+	deleteFile,
+	uploadFiles,
+	isUploading,
+	isCreatingFolder,
+	isDeletingFolder,
+	isDeletingFile,
+}: TableProps) => {
 	const queryClient = useQueryClient();
 	const router = useRouter();
 	const { path } = useParams();
 	const folderId = path ? path[1] : null;
-	const { data, deleteFile, deleteFolder } = useDriveStore();
-	const [isLoading, setIsLoading] = useState(true);
 	const [breadcrumbs, setBreadcrumbs] = useState<
 		Array<{ id: string; name: string }>
 	>([]);
 	const [breadcrumbsLoading, setBreadcrumbsLoading] = useState(false);
+	const [isLoadingState, setIsLoading] = useState(true);
 
 	// Fetch breadcrumb path when folder ID changes
 	useEffect(() => {
@@ -99,39 +125,24 @@ const Table = () => {
 		fetchBreadcrumbs();
 	}, [folderId]);
 
-	// Set loading state to false after a short delay to simulate data fetching
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			setIsLoading(false);
-		}, 800); // Simulate loading for 800ms
-
-		return () => clearTimeout(timer);
-	}, [data]);
-
 	// Reset loading state when folder ID changes
 	useEffect(() => {
 		setIsLoading(true);
 	}, [folderId]);
 
-	// Set up delete folder mutation
-	const deleteFolderMutation = useMutation({
-		mutationFn: async (id: string) => {
-			return await deleteFolder(id);
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
-		},
-	});
+	// Set up periodic refetch as a fallback
+	useEffect(() => {
+		if (data && data.length > 0) {
+			// Data has loaded, reset loading state
+			setIsLoading(false);
+		}
 
-	// Set up delete file mutation
-	const deleteFileMutation = useMutation({
-		mutationFn: async (id: string) => {
-			return await deleteFile(id);
-		},
-		onSuccess: () => {
+		const intervalId = setInterval(() => {
 			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
-		},
-	});
+		}, 5000); // Refetch every 5 seconds as a fallback
+
+		return () => clearInterval(intervalId);
+	}, [data, queryClient, folderId]);
 
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
@@ -149,9 +160,9 @@ const Table = () => {
 
 		try {
 			if (entry.type === "folder") {
-				await deleteFolderMutation.mutateAsync(entry.id);
+				await deleteFolder(entry.id);
 			} else {
-				await deleteFileMutation.mutateAsync(entry.id);
+				await deleteFile(entry.id);
 			}
 		} catch (error) {
 			console.error(`Error deleting ${entry.type}:`, error);
@@ -295,16 +306,12 @@ const Table = () => {
 												<DropdownMenuItem
 													onClick={() => handleDelete(entry)}
 													disabled={
-														(entry.type === "folder" &&
-															deleteFolderMutation.isPending) ||
-														(entry.type !== "folder" &&
-															deleteFileMutation.isPending)
+														(entry.type === "folder" && isDeletingFolder) ||
+														(entry.type !== "folder" && isDeletingFile)
 													}
 												>
-													{(entry.type === "folder" &&
-														deleteFolderMutation.isPending) ||
-													(entry.type !== "folder" &&
-														deleteFileMutation.isPending) ? (
+													{(entry.type === "folder" && isDeletingFolder) ||
+													(entry.type !== "folder" && isDeletingFile) ? (
 														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 													) : (
 														<Trash2 className="mr-2 h-4 w-4" />
