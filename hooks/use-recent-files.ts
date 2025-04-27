@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export interface FileAttachment {
 	id: string;
@@ -16,6 +17,19 @@ export interface FileAttachment {
 	folder_id?: string | null;
 	user_id?: string;
 }
+
+// Define type for file payload
+type FilePayload = {
+	id: string;
+	name: string;
+	created_at: string;
+	size: number;
+	type: string;
+	folder_id: string | null;
+	user_id: string;
+	path?: string;
+	url?: string;
+};
 
 export function useRecentFiles(limit = 5) {
 	const queryClient = useQueryClient();
@@ -44,7 +58,7 @@ export function useRecentFiles(limit = 5) {
 					schema: "public",
 					table: "files",
 				},
-				() => {
+				(_payload: RealtimePostgresChangesPayload<FilePayload>) => {
 					// Simply invalidate the query when any file changes
 					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
 				}
@@ -86,7 +100,7 @@ export function useRecentFiles(limit = 5) {
 
 			// Optimistically update to the new value
 			if (previousFiles) {
-				queryClient.setQueryData(
+				queryClient.setQueryData<FileAttachment[]>(
 					["recent-files", limit],
 					previousFiles.filter((file) => file.id !== fileId)
 				);
@@ -100,7 +114,7 @@ export function useRecentFiles(limit = 5) {
 		onError: (error, _, context) => {
 			// If the mutation fails, use the context returned from onMutate to roll back
 			if (context?.previousFiles) {
-				queryClient.setQueryData(
+				queryClient.setQueryData<FileAttachment[]>(
 					["recent-files", limit],
 					context.previousFiles
 				);

@@ -3,32 +3,26 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
-export type DashboardStats = {
-	stats: {
-		documents: {
-			count: number;
-			size: number;
-			sizeGB: number;
-			percentage: number;
-		};
-		images: { count: number; size: number; sizeGB: number; percentage: number };
-		videos: { count: number; size: number; sizeGB: number; percentage: number };
-		others: { count: number; size: number; sizeGB: number; percentage: number };
-		total: { count: number; size: number; sizeGB: number; percentage: number };
-	};
-	folderStats: Array<{
-		id: string;
-		name: string;
-		items: number;
-		lastUpdate: string;
-		starred: boolean;
-	}>;
-	storageInfo: {
-		used: number;
-		total: number;
-		percentage: number;
-	};
+// Import the dashboard types
+import type { DashboardStats } from "@/lib/types/dashboard";
+
+// Define types for payloads
+type FilePayload = {
+	id: string;
+	name: string;
+	size: number;
+	type: string;
+	folder_id: string | null;
+	user_id: string;
+};
+
+type FolderPayload = {
+	id: string;
+	name: string;
+	parent_id: string | null;
+	user_id: string;
 };
 
 export function useDashboardStats() {
@@ -59,7 +53,7 @@ export function useDashboardStats() {
 					schema: "public",
 					table: "files",
 				},
-				() => {
+				(_payload: RealtimePostgresChangesPayload<FilePayload>) => {
 					// Simply invalidate the dashboard stats when any file changes
 					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 				}
@@ -72,7 +66,7 @@ export function useDashboardStats() {
 					schema: "public",
 					table: "folders",
 				},
-				() => {
+				(_payload: RealtimePostgresChangesPayload<FolderPayload>) => {
 					// Simply invalidate the dashboard stats when any folder changes
 					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 				}

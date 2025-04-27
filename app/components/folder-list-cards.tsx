@@ -43,6 +43,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 
+// Import the dashboard types
+import type { DashboardStats } from "@/lib/types/dashboard";
+
 // Animation variants
 const containerVariants = {
 	hidden: { opacity: 0 },
@@ -93,20 +96,23 @@ export function FolderListCards() {
 
 			return response.json();
 		},
+		// Update the onMutate function with proper types
 		onMutate: async (folderId) => {
 			// Cancel any outgoing refetches
 			await queryClient.cancelQueries({ queryKey: ["dashboard-stats"] });
 
 			// Snapshot the previous value
-			const previousData = queryClient.getQueryData(["dashboard-stats"]);
+			const previousData = queryClient.getQueryData<DashboardStats>([
+				"dashboard-stats",
+			]);
 
 			// Optimistically update to the new value
-			queryClient.setQueryData(["dashboard-stats"], (old: any) => {
+			queryClient.setQueryData<DashboardStats>(["dashboard-stats"], (old) => {
 				if (!old || !old.folderStats) return old;
 				return {
 					...old,
 					folderStats: old.folderStats.filter(
-						(folder: any) => folder.id !== folderId
+						(folder) => folder.id !== folderId
 					),
 				};
 			});

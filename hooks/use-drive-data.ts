@@ -3,8 +3,30 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { DriveEntry, File } from "@/lib/types/type";
+import type { DriveEntry, Folder } from "@/lib/types/type";
 import { toast } from "sonner";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+
+// Define types for Supabase realtime payloads
+type FolderPayload = {
+	id: string;
+	name: string;
+	created_at: string;
+	parent_id: string | null;
+	user_id: string;
+};
+
+type FilePayload = {
+	id: string;
+	name: string;
+	created_at: string;
+	size: number;
+	type: string;
+	folder_id: string | null;
+	user_id: string;
+	path?: string;
+	url?: string;
+};
 
 export function useDriveData(folderId: string | null) {
 	const queryClient = useQueryClient();
@@ -20,7 +42,7 @@ export function useDriveData(folderId: string | null) {
 			}
 			return response.json();
 		},
-		staleTime: 5 * 60 * 1000, // 30 seconds
+		staleTime: 1000 * 30, // 30 seconds
 	});
 
 	// Set up Supabase realtime subscriptions - this is still needed to trigger React Query refetches
@@ -41,7 +63,7 @@ export function useDriveData(folderId: string | null) {
 					schema: "public",
 					table: "folders",
 				},
-				(payload) => {
+				(payload: RealtimePostgresChangesPayload<FolderPayload>) => {
 					console.log("Folder change detected:", payload);
 
 					// Invalidate queries to ensure data is fresh
@@ -49,12 +71,12 @@ export function useDriveData(folderId: string | null) {
 					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 
 					// Show appropriate toast based on the event
-					if (payload.eventType === "INSERT") {
-						toast.success(`Folder "${(payload.new as any).name}" created`);
+					if (payload.eventType === "INSERT" && payload.new) {
+						toast.success(`Folder "${payload.new.name}" created`);
 					} else if (payload.eventType === "DELETE") {
 						toast.info("Folder deleted");
-					} else if (payload.eventType === "UPDATE") {
-						toast.info(`Folder "${(payload.new as any).name}" updated`);
+					} else if (payload.eventType === "UPDATE" && payload.new) {
+						toast.info(`Folder "${payload.new.name}" updated`);
 					}
 				}
 			)
@@ -66,7 +88,7 @@ export function useDriveData(folderId: string | null) {
 					schema: "public",
 					table: "files",
 				},
-				(payload) => {
+				(payload: RealtimePostgresChangesPayload<FilePayload>) => {
 					console.log("File change detected:", payload);
 
 					// Invalidate queries to ensure data is fresh
@@ -75,12 +97,12 @@ export function useDriveData(folderId: string | null) {
 					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
 
 					// Show appropriate toast based on the event
-					if (payload.eventType === "INSERT") {
-						toast.success(`File "${(payload.new as any).name}" uploaded`);
+					if (payload.eventType === "INSERT" && payload.new) {
+						toast.success(`File "${payload.new.name}" uploaded`);
 					} else if (payload.eventType === "DELETE") {
 						toast.info("File deleted");
-					} else if (payload.eventType === "UPDATE") {
-						toast.info(`File "${(payload.new as any).name}" updated`);
+					} else if (payload.eventType === "UPDATE" && payload.new) {
+						toast.info(`File "${payload.new.name}" updated`);
 					}
 				}
 			)
@@ -119,17 +141,14 @@ export function useDriveData(folderId: string | null) {
 				throw new Error(data.error || "Failed to create folder");
 			}
 
-			return data.folder;
+			return data.folder as Folder;
 		},
 		onSuccess: (newFolder) => {
 			// Optimistically update the cache
-			queryClient.setQueryData(
-				["drive", folderId],
-				(old: DriveEntry[] | undefined) => {
-					if (!old) return [newFolder];
-					return [...old, { ...newFolder, type: "folder" }];
-				}
-			);
+			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
+				if (!old) return [newFolder];
+				return [...old, { ...newFolder, type: "folder" }];
+			});
 		},
 		onError: (error) => {
 			console.error("Error creating folder:", error);
@@ -157,16 +176,12 @@ export function useDriveData(folderId: string | null) {
 		},
 		onMutate: async (deletedFolderId) => {
 			// Optimistically update the cache
-			queryClient.setQueryData(
-				["drive", folderId],
-				(old: DriveEntry[] | undefined) => {
-					if (!old) return [];
-					return old.filter(
-						(entry) =>
-							!(entry.type === "folder" && entry.id === deletedFolderId)
-					);
-				}
-			);
+			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
+				if (!old) return [];
+				return old.filter(
+					(entry) => !(entry.type === "folder" && entry.id === deletedFolderId)
+				);
+			});
 		},
 		onError: (error) => {
 			console.error("Error deleting folder:", error);
@@ -197,15 +212,12 @@ export function useDriveData(folderId: string | null) {
 		},
 		onMutate: async (deletedFileId) => {
 			// Optimistically update the cache
-			queryClient.setQueryData(
-				["drive", folderId],
-				(old: DriveEntry[] | undefined) => {
-					if (!old) return [];
-					return old.filter(
-						(entry) => !(entry.type !== "folder" && entry.id === deletedFileId)
-					);
-				}
-			);
+			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
+				if (!old) return [];
+				return old.filter(
+					(entry) => !(entry.type !== "folder" && entry.id === deletedFileId)
+				);
+			});
 		},
 		onError: (error) => {
 			console.error("Error deleting file:", error);
