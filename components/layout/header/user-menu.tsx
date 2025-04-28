@@ -15,7 +15,6 @@ export default function UserMenu() {
 	const user = useGetCurrentUser();
 	const { mutate: logout } = useLogout();
 	const avatarurl = user?.user_metadata.avatar_url;
-	console.log(avatarurl);
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>

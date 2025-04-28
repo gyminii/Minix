@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import type { Folder as FolderType } from "@/lib/types/type";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 // Add props type definition
 type TableProps = {
@@ -99,7 +100,6 @@ const Table = ({
 		Array<{ id: string; name: string }>
 	>([]);
 	const [breadcrumbsLoading, setBreadcrumbsLoading] = useState(false);
-
 	// Fetch breadcrumb path when folder ID changes
 	useEffect(() => {
 		const fetchBreadcrumbs = async () => {
@@ -122,31 +122,16 @@ const Table = ({
 		fetchBreadcrumbs();
 	}, [folderId]);
 
-	// // Reset loading state when folder ID changes
-	// useEffect(() => {
-	// 	setIsLoading(true);
-	// }, [folderId]);
-
-	// // Set up periodic refetch as a fallback
-	// useEffect(() => {
-	// 	if (data && data.length > 0) {
-	// 		// Data has loaded, reset loading state
-	// 		setIsLoading(false);
-	// 	}
-
-	// 	const intervalId = setInterval(() => {
-	// 		queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
-	// 	}, 5000); // Refetch every 5 seconds as a fallback
-
-	// 	return () => clearInterval(intervalId);
-	// }, [data, queryClient, folderId]);
-
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
 			router.push(`/drive/folders/${entry.id}`);
 		} else {
-			// Handle file click - perhaps open a preview
-			console.log("File clicked:", entry);
+			if ("url" in entry && entry.url) {
+				window.open(entry.url, "_blank", "noopener,noreferrer");
+			} else {
+				toast.error("File preview not available");
+				console.log("File clicked but no URL available:", entry);
+			}
 		}
 	};
 
@@ -165,12 +150,76 @@ const Table = ({
 			console.error(`Error deleting ${entry.type}:`, error);
 		}
 	};
+	const handleDownload = async (entry: DriveEntry) => {
+		try {
+			if (entry.type === "folder") {
+				// Use fetch to get the file
+				const response = await fetch(`/api/folders/${entry.id}/download`);
 
+				if (!response.ok) {
+					const errorData = await response
+						.json()
+						.catch(() => ({ error: "Download failed" }));
+					throw new Error(errorData.error || "Failed to download folder");
+				}
+
+				// Get the filename from the Content-Disposition header or use a default name
+				const contentDisposition = response.headers.get("Content-Disposition");
+				let filename = `${entry.name}.zip`;
+
+				if (contentDisposition) {
+					const filenameMatch = contentDisposition.match(/filename="(.+)"/i);
+					if (filenameMatch && filenameMatch[1]) {
+						filename = filenameMatch[1];
+					}
+				}
+
+				// Convert the response to a blob
+				const blob = await response.blob();
+
+				// Create a download link and trigger the download
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.style.display = "none";
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+
+				// Clean up
+				window.URL.revokeObjectURL(url);
+				document.body.removeChild(a);
+
+				toast.success(`Downloaded ${entry.name}`);
+			} else {
+				if ("url" in entry && entry.url) {
+					const a = document.createElement("a");
+					a.style.display = "none";
+					a.href = entry.url;
+					a.target = "_blank";
+					a.rel = "noopener noreferrer";
+					a.download = entry.name;
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+
+					toast.success(`Downloaded ${entry.name}`);
+				} else {
+					toast.error("File URL not available");
+				}
+			}
+		} catch (error) {
+			toast.error(
+				`Failed to download: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`
+			);
+		}
+	};
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle>
-					{/* Breadcrumb Navigation inside CardTitle */}
 					<Breadcrumb>
 						<BreadcrumbList>
 							<BreadcrumbItem>
@@ -291,7 +340,7 @@ const Table = ({
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end">
-												<DropdownMenuItem>
+												<DropdownMenuItem onClick={() => handleDownload(entry)}>
 													<Download className="mr-2 h-4 w-4" />
 													<span>Download</span>
 												</DropdownMenuItem>

@@ -36,7 +36,8 @@ export function useDriveData(folderId: string | null) {
 	const query = useQuery<DriveEntry[]>({
 		queryKey: ["drive", folderId],
 		queryFn: async () => {
-			const response = await fetch(`/api/drive?folderId=${folderId || ""}`);
+			const url = folderId ? `/api/drive?folderId=${folderId}` : "/api/drive";
+			const response = await fetch(url);
 			if (!response.ok) {
 				throw new Error("Failed to fetch drive data");
 			}
@@ -47,11 +48,6 @@ export function useDriveData(folderId: string | null) {
 
 	// Set up Supabase realtime subscriptions - this is still needed to trigger React Query refetches
 	useEffect(() => {
-		console.log(
-			"Setting up Supabase realtime subscriptions for folder:",
-			folderId
-		);
-
 		// Create a channel for real-time updates
 		const channel = supabase
 			.channel("drive-changes")
@@ -120,7 +116,6 @@ export function useDriveData(folderId: string | null) {
 
 		// Cleanup function
 		return () => {
-			console.log("Cleaning up Supabase realtime subscription");
 			supabase.removeChannel(channel);
 		};
 	}, [folderId, queryClient, supabase]);

@@ -3,10 +3,9 @@
 import type React from "react";
 
 import { LoginForm } from "@/components/login-form";
-import { motion } from "framer-motion";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 // Animated background blob component
 const AnimatedBlob = ({
@@ -95,7 +94,6 @@ const HoverIcon = ({
 };
 
 export default function Page() {
-	const { theme } = useTheme();
 	const [mounted, setMounted] = useState(false);
 	const isMobile = useIsMobile();
 	const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
@@ -207,12 +205,12 @@ export default function Page() {
 							</motion.div>
 
 							<motion.h1
-								className="mt-4 text-2xl md:text-4xl font-bold tracking-tight md:mt-6 md:text-5xl"
+								className="mt-4 text-2xl md:text-4xl font-bold tracking-tight md:mt-6"
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ delay: 0.5, duration: 0.8 }}
 							>
-								Minix Drive
+								Minix
 							</motion.h1>
 
 							<motion.p

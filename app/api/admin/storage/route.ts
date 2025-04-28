@@ -3,16 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
 	try {
-		// Use the existing createClient function
 		const supabase = await createClient();
-
-		// Authenticate the user (only admins should access this endpoint)
 		const { data: userData, error: userError } = await supabase.auth.getUser();
 		if (userError || !userData?.user) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		// Get bucket information
 		try {
 			const { data: bucket, error: bucketError } =
 				await supabase.storage.getBucket("minix");
@@ -20,8 +16,7 @@ export async function GET() {
 			if (bucketError) {
 				throw bucketError;
 			}
-
-			// Return bucket information
+			console.log(bucket);
 			return NextResponse.json({
 				bucket: {
 					name: bucket.name,

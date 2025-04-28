@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
 		if (authError || !user) {
 			return NextResponse.json(
-				{ error: "User not authenticated" },
+				{ error: "User not authenticated", message: authError?.message },
 				{ status: 401 }
 			);
 		}
@@ -19,12 +19,6 @@ export async function POST(req: Request) {
 		const formData = await req.formData();
 		const files = formData.getAll("files") as File[];
 		const folderId = formData.get("folder_id") as string | null;
-
-		console.log(
-			`API: Processing ${files.length} files for folder_id: ${
-				folderId || "root"
-			}`
-		);
 
 		if (!files || files.length === 0) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
@@ -34,9 +28,8 @@ export async function POST(req: Request) {
 		const uploads = await Promise.all(
 			files.map(async (file) => {
 				try {
-					// Make sure we have a valid file name
+					// Handling Invalid file names
 					if (!file.name || file.name === "undefined") {
-						console.error("Invalid file name:", file);
 						return {
 							error: "Invalid file name",
 							name: "unknown",

@@ -124,7 +124,6 @@ interface FileAttachment {
 export function TableRecentFiles() {
 	const queryClient = useQueryClient();
 
-	// Fetch recent files
 	const {
 		data: files,
 		isLoading,

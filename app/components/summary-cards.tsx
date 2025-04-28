@@ -82,7 +82,7 @@ export function SummaryCards() {
 						<div className="text-2xl font-semibold lg:text-3xl">
 							<CountAnimation number={data.stats.documents.count} />
 						</div>
-						<div className="space-y-2">
+						{/* <div className="space-y-2">
 							<div className="text-muted-foreground text-sm">
 								{data.stats.documents.sizeGB} GB used
 							</div>
@@ -90,7 +90,7 @@ export function SummaryCards() {
 							<div className="text-muted-foreground text-sm">
 								{data.stats.documents.percentage}% of storage used
 							</div>
-						</div>
+						</div> */}
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -110,7 +110,7 @@ export function SummaryCards() {
 						<div className="text-2xl font-semibold lg:text-3xl">
 							<CountAnimation number={data.stats.images.count} />
 						</div>
-						<div className="space-y-2">
+						{/* <div className="space-y-2">
 							<div className="text-muted-foreground text-sm">
 								{data.stats.images.sizeGB} GB used
 							</div>
@@ -118,7 +118,7 @@ export function SummaryCards() {
 							<div className="text-muted-foreground text-sm">
 								{data.stats.images.percentage}% of storage used
 							</div>
-						</div>
+						</div> */}
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -138,7 +138,7 @@ export function SummaryCards() {
 						<div className="text-2xl font-semibold lg:text-3xl">
 							<CountAnimation number={data.stats.videos.count} />
 						</div>
-						<div className="space-y-2">
+						{/* <div className="space-y-2">
 							<div className="text-muted-foreground text-sm">
 								{data.stats.videos.sizeGB} GB used
 							</div>
@@ -146,7 +146,7 @@ export function SummaryCards() {
 							<div className="text-muted-foreground text-sm">
 								{data.stats.videos.percentage}% of storage used
 							</div>
-						</div>
+						</div> */}
 					</CardContent>
 				</Card>
 			</motion.div>
@@ -166,7 +166,7 @@ export function SummaryCards() {
 						<div className="text-2xl font-semibold lg:text-3xl">
 							<CountAnimation number={data.stats.others.count} />
 						</div>
-						<div className="space-y-2">
+						{/* <div className="space-y-2">
 							<div className="text-muted-foreground text-sm">
 								{data.stats.others.sizeGB} GB used
 							</div>
@@ -174,7 +174,7 @@ export function SummaryCards() {
 							<div className="text-muted-foreground text-sm">
 								{data.stats.others.percentage}% of storage used
 							</div>
-						</div>
+						</div> */}
 					</CardContent>
 				</Card>
 			</motion.div>

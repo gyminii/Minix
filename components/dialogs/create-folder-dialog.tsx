@@ -24,7 +24,7 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
-import { useState } from "react";
+import React, { useCallback, useState } from "react";
 
 const formSchema = z.object({
 	name: z.string().min(2, {
@@ -32,7 +32,7 @@ const formSchema = z.object({
 	}),
 });
 
-const CreateFolderDialog = () => {
+const CreateFolderDialog = ({ children }: { children: React.ReactNode }) => {
 	// Get the current folder ID from the URL params
 	const params = useParams();
 	const { path } = params;
@@ -72,11 +72,35 @@ const CreateFolderDialog = () => {
 
 	const onSubmit = (values: z.infer<typeof formSchema>) =>
 		createFolderMutate(values);
+	const CustomTrigger = useCallback(() => {
+		const handleClick = (e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setOpen(true);
+		};
 
+		if (children) {
+			return (
+				<div onClick={handleClick} className="cursor-pointer">
+					{children}
+				</div>
+			);
+		}
+
+		return (
+			<Button
+				variant="outline"
+				className="gap-2 transition-all duration-200 hover:bg-primary/10"
+				onClick={handleClick}
+			>
+				Create Folder
+			</Button>
+		);
+	}, [children, setOpen]);
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button variant="outline">Create</Button>
+				<CustomTrigger />
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>

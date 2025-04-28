@@ -3,7 +3,9 @@ type File = {
 	name: string;
 	created_at: string;
 	size: number;
-	type: string; // MIME type
+	url?: string;
+	path?: string;
+	type: string;
 };
 
 type Folder = {
@@ -11,6 +13,7 @@ type Folder = {
 	name: string;
 	created_at: string;
 	size?: number;
+	url?: string;
 	type: "folder";
 };
 

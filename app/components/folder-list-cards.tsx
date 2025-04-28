@@ -305,7 +305,7 @@ export function FolderListCards() {
 									<div className="text-muted-foreground text-xs">
 										Last update: {folder.lastUpdate}
 									</div>
-									<Button variant="ghost" size="icon">
+									{/* <Button variant="ghost" size="icon">
 										{folder.starred ? (
 											<StarFilledIcon className="size-4 text-orange-400" />
 										) : (
@@ -314,7 +314,7 @@ export function FolderListCards() {
 										<span className="sr-only">
 											{folder.starred ? "Unstar" : "Star"} folder
 										</span>
-									</Button>
+									</Button> */}
 								</div>
 							</CardContent>
 						</Card>

@@ -46,6 +46,8 @@ import {
 // import Logo from "@/components/layout/logo";
 import { page_routes } from "@/lib/routes-config";
 import Logo from "./logo";
+import { FileUploadDialog } from "@/app/components";
+import CreateFolderDialog from "../dialogs/create-folder-dialog";
 
 export default function Sidebar() {
 	const pathname = usePathname();
@@ -82,18 +84,18 @@ export default function Sidebar() {
 								</SidebarMenuButton>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent className="w-(--radix-popper-anchor-width)">
-								<DropdownMenuItem>
-									<FolderPlus />
-									<span>New Folder</span>
-								</DropdownMenuItem>
-								<DropdownMenuItem>
-									<FilePlus2 />
-									<span>File Upload</span>
-								</DropdownMenuItem>
-								<DropdownMenuItem>
-									<FolderUp />
-									<span>Folder Upload</span>
-								</DropdownMenuItem>
+								<CreateFolderDialog>
+									<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+										<FolderPlus />
+										<span>New Folder</span>
+									</DropdownMenuItem>
+								</CreateFolderDialog>
+								<FileUploadDialog>
+									<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+										<FilePlus2 />
+										<span>File Upload</span>
+									</DropdownMenuItem>
+								</FileUploadDialog>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</SidebarMenuItem>

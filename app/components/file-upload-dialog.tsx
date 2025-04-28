@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	AlertCircle,
@@ -38,11 +38,13 @@ import { useDriveData } from "@/hooks/use-drive-data";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getFileTypeIcon } from "@/utils/getFileIcon";
 
 interface FileUploadDropzoneProps {
 	maxFiles?: number;
 	maxSize?: number;
 	accept?: Accept;
+	children?: React.ReactNode;
 }
 
 // Form schema with zod validation
@@ -81,33 +83,6 @@ const formatDate = (timestamp: number) => {
 	} catch (error) {
 		console.log(error);
 		return "Unknown date";
-	}
-};
-
-// Get file type icon
-const getFileTypeIcon = (type: string) => {
-	if (type.startsWith("video/")) {
-		return "🎬";
-	} else if (type.startsWith("audio/")) {
-		return "🎵";
-	} else if (type.includes("pdf")) {
-		return "📄";
-	} else if (type.includes("word") || type.includes("document")) {
-		return "📝";
-	} else if (
-		type.includes("excel") ||
-		type.includes("sheet") ||
-		type.includes("drawio")
-	) {
-		return "📊";
-	} else if (type.includes("powerpoint") || type.includes("presentation")) {
-		return "📑";
-	} else if (type.includes("image/")) {
-		return "🖼️";
-	} else if (type.includes("text/")) {
-		return "📄";
-	} else {
-		return "📁";
 	}
 };
 
@@ -168,6 +143,7 @@ export function FileUploadDialog({
 		"application/x-7z-compressed": [".7z"],
 		"application/gzip": [".tar.gz"],
 	},
+	children,
 }: FileUploadDropzoneProps) {
 	// Using the existing useIsMobile hook
 	const isMobile = useIsMobile();
@@ -340,12 +316,9 @@ export function FileUploadDialog({
 
 	// Handle document capture
 	const handleDocumentCapture = () => {
-		// Create a file input element for document capture
 		const input = document.createElement("input");
 		input.type = "file";
 		input.accept = "application/pdf,image/*";
-
-		// Handle file selection
 		input.onchange = (e) => {
 			const target = e.target as HTMLInputElement;
 			if (target.files && target.files.length > 0) {
@@ -353,21 +326,37 @@ export function FileUploadDialog({
 			}
 		};
 
-		// Trigger the file input
 		input.click();
 	};
+	const CustomTrigger = useCallback(() => {
+		const handleClick = (e: React.MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setOpen(true);
+		};
 
+		if (children) {
+			return (
+				<div onClick={handleClick} className="cursor-pointer">
+					{children}
+				</div>
+			);
+		}
+
+		return (
+			<Button
+				variant="outline"
+				className="gap-2 transition-all duration-200 hover:bg-primary/10"
+				onClick={handleClick}
+			>
+				<Upload className="h-4 w-4" />
+				Upload Files
+			</Button>
+		);
+	}, [children, setOpen]);
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button
-					variant="outline"
-					className="gap-2 transition-all duration-200 hover:bg-primary/10"
-				>
-					<Upload className="h-4 w-4" />
-					Upload Files
-				</Button>
-			</DialogTrigger>
+			<CustomTrigger />
 			<DialogContent
 				className="sm:max-w-md md:min-w-xl"
 				onInteractOutside={(e) => e.preventDefault()}
