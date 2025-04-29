@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/dialog";
 import Link from "next/link";
 import type { Paste } from "@/lib/types/pastes";
+import { expirationOptions, syntaxOptions } from "@/utils/pastes/options";
 
 // Animation variants
 const containerVariants = {
@@ -87,37 +88,6 @@ const itemVariants = {
 	},
 };
 
-// Syntax highlighting options
-const syntaxOptions = [
-	{ value: "plaintext", label: "Plain Text" },
-	{ value: "javascript", label: "JavaScript" },
-	{ value: "typescript", label: "TypeScript" },
-	{ value: "python", label: "Python" },
-	{ value: "html", label: "HTML" },
-	{ value: "css", label: "CSS" },
-	{ value: "json", label: "JSON" },
-	{ value: "markdown", label: "Markdown" },
-	{ value: "sql", label: "SQL" },
-	{ value: "bash", label: "Bash" },
-	{ value: "java", label: "Java" },
-	{ value: "csharp", label: "C#" },
-	{ value: "cpp", label: "C++" },
-	{ value: "go", label: "Go" },
-	{ value: "rust", label: "Rust" },
-	{ value: "php", label: "PHP" },
-	{ value: "ruby", label: "Ruby" },
-];
-
-// Expiration options
-const expirationOptions = [
-	{ value: "never", label: "Never" },
-	{ value: "30m", label: "30 Minutes" },
-	{ value: "1h", label: "1 Hour" },
-	{ value: "1d", label: "1 Day" },
-	{ value: "1w", label: "1 Week" },
-	{ value: "1m", label: "1 Month" },
-];
-
 export default function PasteViewPage() {
 	const router = useRouter();
 	const { id } = useParams() as { id: string };
@@ -136,7 +106,7 @@ export default function PasteViewPage() {
 	const [expiration, setExpiration] = useState("never");
 	const [folderId, setFolderId] = useState<string | null>(null);
 
-	const { data: folders, isLoading: foldersLoading } = useFolders();
+	const { data: folders } = useFolders();
 
 	useEffect(() => {
 		const fetchPaste = async () => {
@@ -313,7 +283,7 @@ export default function PasteViewPage() {
 
 	if (isLoading) {
 		return (
-			<div className="container mx-auto max-w-4xlflex items-center justify-center min-h-[60vh]">
+			<div className="h-full flex-1 flex items-center justify-center min-h-[60vh]">
 				<div className="flex flex-col items-center gap-4">
 					<Loader2 className="h-8 w-8 animate-spin text-primary" />
 					<p className="text-muted-foreground">Loading paste...</p>
@@ -340,12 +310,7 @@ export default function PasteViewPage() {
 	}
 
 	return (
-		<motion.div
-			className="container mx-auto max-w-4xl"
-			variants={containerVariants}
-			initial="hidden"
-			animate="visible"
-		>
+		<motion.div variants={containerVariants} initial="hidden" animate="visible">
 			<motion.div
 				variants={itemVariants}
 				className="mb-6 flex items-center justify-between"

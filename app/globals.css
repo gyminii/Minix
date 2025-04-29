@@ -247,6 +247,12 @@
 		opacity: 0;
 	}
 }
+@layer utilities {
+	.select-content-width-full {
+		width: var(--radix-select-menu-trigger-width);
+		max-height: var(--radix-select-menu-content-available-height);
+	}
+}
 
 [data-sonner-toast][data-mounted="true"] {
 	animation: toast-enter 0.2s ease-out forwards;

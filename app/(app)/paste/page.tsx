@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Clock, Code2, Loader2, Plus, Save } from "lucide-react";
+import { Clock, Code2, FileText, Loader2, Save } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -24,10 +24,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useFolders } from "@/hooks/use-folders";
 import { usePastes } from "@/hooks/use-pastes";
 import { PasteTable } from "./components/table";
+import { expirationOptions, syntaxOptions } from "@/utils/pastes/options";
 
 // Animation variants
 const containerVariants = {
@@ -53,37 +55,6 @@ const itemVariants = {
 	},
 };
 
-// Syntax highlighting options
-const syntaxOptions = [
-	{ value: "plaintext", label: "Plain Text" },
-	{ value: "javascript", label: "JavaScript" },
-	{ value: "typescript", label: "TypeScript" },
-	{ value: "python", label: "Python" },
-	{ value: "html", label: "HTML" },
-	{ value: "css", label: "CSS" },
-	{ value: "json", label: "JSON" },
-	{ value: "markdown", label: "Markdown" },
-	{ value: "sql", label: "SQL" },
-	{ value: "bash", label: "Bash" },
-	{ value: "java", label: "Java" },
-	{ value: "csharp", label: "C#" },
-	{ value: "cpp", label: "C++" },
-	{ value: "go", label: "Go" },
-	{ value: "rust", label: "Rust" },
-	{ value: "php", label: "PHP" },
-	{ value: "ruby", label: "Ruby" },
-];
-
-// Expiration options
-const expirationOptions = [
-	{ value: "never", label: "Never" },
-	{ value: "30m", label: "30 Minutes" },
-	{ value: "1h", label: "1 Hour" },
-	{ value: "1d", label: "1 Day" },
-	{ value: "1w", label: "1 Week" },
-	{ value: "1m", label: "1 Month" },
-];
-
 export default function PastePage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -97,7 +68,12 @@ export default function PastePage() {
 	const [folderId, setFolderId] = useState<string | null>(selectedFolder);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const { data: folders, isLoading: foldersLoading } = useFolders();
+	// Update folderId when URL parameter changes
+	useEffect(() => {
+		setFolderId(selectedFolder);
+	}, [selectedFolder]);
+
+	const { data: folders } = useFolders();
 	const {
 		data: pastes,
 		isLoading: pastesLoading,
@@ -197,19 +173,20 @@ export default function PastePage() {
 							Create, manage, and share code snippets and text content.
 						</p>
 					</div>
-					<Button onClick={() => router.push("/paste?tab=create")}>
-						<Plus className="mr-2 h-4 w-4" />
-						New Paste
-					</Button>
 				</div>
 			</motion.div>
 
 			<motion.div variants={itemVariants}>
-				<Tabs defaultValue={activeTab} onValueChange={handleTabChange}>
+				{/* Change from defaultValue to value to make tabs URL-driven */}
+				<Tabs value={activeTab} onValueChange={handleTabChange}>
 					<div className="flex items-center justify-between mb-6">
-						<TabsList>
-							<TabsTrigger value="create">Create</TabsTrigger>
-							<TabsTrigger value="list">My Pastes</TabsTrigger>
+						<TabsList className="w-[200px]">
+							<TabsTrigger value="create" className="flex-1">
+								Create
+							</TabsTrigger>
+							<TabsTrigger value="list" className="flex-1">
+								My Pastes
+							</TabsTrigger>
 						</TabsList>
 
 						{activeTab === "list" && (
@@ -217,7 +194,7 @@ export default function PastePage() {
 								value={folderId || "root"}
 								onValueChange={handleFolderChange}
 							>
-								<SelectTrigger className="w-[200px]">
+								<SelectTrigger className="w-[220px]">
 									<SelectValue placeholder="Filter by folder" />
 								</SelectTrigger>
 								<SelectContent>
@@ -243,93 +220,126 @@ export default function PastePage() {
 							</CardHeader>
 							<CardContent className="space-y-6">
 								<div className="space-y-2">
-									<Label htmlFor="title">Title</Label>
+									<Label htmlFor="title" className="text-base font-medium">
+										Title
+									</Label>
 									<Input
 										id="title"
 										value={title}
 										onChange={(e) => setTitle(e.target.value)}
 										placeholder="Enter a title for your paste"
+										className="w-full"
 									/>
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="content">Content</Label>
+									<Label htmlFor="content" className="text-base font-medium">
+										Content
+									</Label>
 									<Textarea
 										id="content"
 										value={content}
 										onChange={(e) => setContent(e.target.value)}
 										placeholder="Paste your code or text here..."
-										className="min-h-[300px] font-mono"
+										className="min-h-[300px] font-mono w-full"
 									/>
 								</div>
 
-								<div className="grid gap-4 md:grid-cols-3">
-									<div className="space-y-2">
-										<Label htmlFor="syntax">Syntax Highlighting</Label>
-										<Select value={syntax} onValueChange={setSyntax}>
-											<SelectTrigger id="syntax">
-												<SelectValue placeholder="Select language" />
-											</SelectTrigger>
-											<SelectContent>
-												{syntaxOptions.map((option) => (
-													<SelectItem key={option.value} value={option.value}>
-														{option.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
+								<div className="space-y-4">
+									<h3 className="text-base font-medium">Options</h3>
+									<Separator />
 
-									<div className="space-y-2">
-										<Label htmlFor="expiration">Expiration</Label>
-										<Select value={expiration} onValueChange={setExpiration}>
-											<SelectTrigger id="expiration">
-												<SelectValue placeholder="Select expiration" />
-											</SelectTrigger>
-											<SelectContent>
-												{expirationOptions.map((option) => (
-													<SelectItem key={option.value} value={option.value}>
-														{option.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
+									<div className="grid gap-6 sm:grid-cols-1 md:grid-cols-3">
+										<div className="space-y-2 bg-muted/30 p-4 rounded-lg border">
+											<div className="flex items-center mb-2">
+												<Code2 className="h-5 w-5 mr-2 text-primary" />
+												<Label htmlFor="syntax" className="font-medium">
+													Syntax Highlighting
+												</Label>
+											</div>
+											<Select value={syntax} onValueChange={setSyntax}>
+												<SelectTrigger id="syntax" className="w-full">
+													<SelectValue placeholder="Select language" />
+												</SelectTrigger>
+												<SelectContent className="max-h-[300px]">
+													{syntaxOptions.map((option) => (
+														<SelectItem key={option.value} value={option.value}>
+															{option.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<p className="text-xs text-muted-foreground mt-2">
+												Choose the language for syntax highlighting
+											</p>
+										</div>
 
-									<div className="space-y-2">
-										<Label htmlFor="folder">Save in Folder (Optional)</Label>
-										<Select
-											value={folderId || "root"}
-											onValueChange={(value) =>
-												setFolderId(value === "root" ? null : value)
-											}
-										>
-											<SelectTrigger id="folder">
-												<SelectValue placeholder="Select folder" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="root">Root (No Folder)</SelectItem>
-												{folders?.map((folder) => (
-													<SelectItem key={folder.id} value={folder.id}>
-														{folder.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+										<div className="space-y-2 bg-muted/30 p-4 rounded-lg border">
+											<div className="flex items-center mb-2">
+												<Clock className="h-5 w-5 mr-2 text-primary" />
+												<Label htmlFor="expiration" className="font-medium">
+													Expiration Time
+												</Label>
+											</div>
+											<Select value={expiration} onValueChange={setExpiration}>
+												<SelectTrigger id="expiration" className="w-full">
+													<SelectValue placeholder="Select expiration" />
+												</SelectTrigger>
+												<SelectContent>
+													{expirationOptions.map((option) => (
+														<SelectItem key={option.value} value={option.value}>
+															{option.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<p className="text-xs text-muted-foreground mt-2">
+												Set when this paste should expire
+											</p>
+										</div>
+
+										<div className="space-y-2 bg-muted/30 p-4 rounded-lg border">
+											<div className="flex items-center mb-2">
+												<FileText className="h-5 w-5 mr-2 text-primary" />
+												<Label htmlFor="folder" className="font-medium">
+													Save in Folder
+												</Label>
+											</div>
+											<Select
+												value={folderId || "root"}
+												onValueChange={(value) =>
+													setFolderId(value === "root" ? null : value)
+												}
+											>
+												<SelectTrigger id="folder" className="w-full">
+													<SelectValue placeholder="Select folder" />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="root">Root (No Folder)</SelectItem>
+													{folders?.map((folder) => (
+														<SelectItem key={folder.id} value={folder.id}>
+															{folder.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<p className="text-xs text-muted-foreground mt-2">
+												Organize your paste in a specific folder
+											</p>
+										</div>
 									</div>
 								</div>
 							</CardContent>
-							<CardFooter className="flex justify-between">
-								<div className="flex items-center text-sm text-muted-foreground">
-									<div className="flex items-center mr-4">
+							<CardFooter className="flex flex-col sm:flex-row justify-between gap-4 pt-6 border-t">
+								<div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+									<div className="flex items-center px-3 py-1 rounded-full bg-muted">
 										<Code2 className="mr-1 h-4 w-4" />
 										<span>
-											Syntax:{" "}
 											{syntaxOptions.find((o) => o.value === syntax)?.label}
 										</span>
 									</div>
 									{expiration !== "never" && (
-										<div className="flex items-center">
+										<div className="flex items-center px-3 py-1 rounded-full bg-muted">
 											<Clock className="mr-1 h-4 w-4" />
 											<span>
 												Expires:{" "}
@@ -340,19 +350,29 @@ export default function PastePage() {
 											</span>
 										</div>
 									)}
+									{folderId && folders?.find((f) => f.id === folderId) && (
+										<div className="flex items-center px-3 py-1 rounded-full bg-muted">
+											<FileText className="mr-1 h-4 w-4" />
+											<span>
+												Folder: {folders.find((f) => f.id === folderId)?.name}
+											</span>
+										</div>
+									)}
 								</div>
 								<Button
 									onClick={handleSubmit}
 									disabled={isSubmitting || !content.trim()}
+									className="w-full sm:w-auto"
+									size="lg"
 								>
 									{isSubmitting ? (
 										<>
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											<Loader2 className="mr-2 h-5 w-5 animate-spin" />
 											Creating...
 										</>
 									) : (
 										<>
-											<Save className="mr-2 h-4 w-4" />
+											<Save className="mr-2 h-5 w-5" />
 											Create Paste
 										</>
 									)}

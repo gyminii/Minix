@@ -17,7 +17,7 @@ const layout = async ({ children }: { children: ReactNode }) => {
 				<Sidebar />
 				<SidebarInset>
 					<Header />
-					<div className="p-4 pb-0 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
+					<div className="m-4 pb-0 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
 						{children}
 					</div>
 					<Toaster />
