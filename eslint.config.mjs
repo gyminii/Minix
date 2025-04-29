@@ -21,6 +21,20 @@ const eslintConfig = [
 			"@next/next/no-img-element": "off",
 		},
 	},
+
+	// Add an override for API routes
+	{
+		files: ["app/api/**/*.{js,jsx,ts,tsx}"],
+		rules: {
+			"@typescript-eslint/no-unused-vars": [
+				"warn",
+				{
+					argsIgnorePattern: "^_",
+					varsIgnorePattern: "^_",
+				},
+			],
+		},
+	},
 ];
 
 export default eslintConfig;

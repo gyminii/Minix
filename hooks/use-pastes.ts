@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { PasteMetadata } from "@/lib/types/paste";
+import type { PasteMetadata } from "@/lib/types/pastes";
 
 export function usePastes(folderId?: string | null) {
 	const queryClient = useQueryClient();

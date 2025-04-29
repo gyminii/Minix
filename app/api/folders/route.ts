@@ -174,7 +174,7 @@ async function recursivelyDeleteFolder(
 	await client.from("folders").delete().eq("id", folderId);
 }
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
 	try {
 		const client = await createClient();
 		const { data: userData, error: userError } = await client.auth.getUser();
