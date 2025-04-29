@@ -356,7 +356,9 @@ export function FileUploadDialog({
 	}, [children, setOpen]);
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<CustomTrigger />
+			<DialogTrigger asChild>
+				<CustomTrigger />
+			</DialogTrigger>
 			<DialogContent
 				className="sm:max-w-md md:min-w-xl"
 				onInteractOutside={(e) => e.preventDefault()}

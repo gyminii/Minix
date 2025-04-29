@@ -9,7 +9,7 @@ import {
 	ChevronsUpDown,
 	FilePlus2,
 	FolderPlus,
-	FolderUp,
+	// FolderUp,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 

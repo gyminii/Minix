@@ -32,7 +32,7 @@ const formSchema = z.object({
 	}),
 });
 
-const CreateFolderDialog = ({ children }: { children: React.ReactNode }) => {
+const CreateFolderDialog = ({ children }: { children?: React.ReactNode }) => {
 	// Get the current folder ID from the URL params
 	const params = useParams();
 	const { path } = params;

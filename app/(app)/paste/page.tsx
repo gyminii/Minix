@@ -55,7 +55,7 @@ export default function PastePage() {
 						Pastebin Feature Coming Soon
 					</h1>
 					<p className="mt-4 text-xl text-muted-foreground">
-						We are working hard to bring you a powerful pastebin feature
+						I&apos;m working hard to bring you a powerful pastebin feature
 					</p>
 				</motion.div>
 

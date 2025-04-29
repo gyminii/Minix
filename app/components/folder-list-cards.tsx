@@ -15,13 +15,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StarFilledIcon } from "@radix-ui/react-icons";
+// import { StarFilledIcon } from "@radix-ui/react-icons";
 import {
 	Download,
 	Folder,
 	MoreVertical,
 	Share2,
-	Star,
+	// Star,
 	Trash2,
 	Loader2,
 } from "lucide-react";
