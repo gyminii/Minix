@@ -173,3 +173,38 @@ async function recursivelyDeleteFolder(
 	// Step 5: Finally delete the folder itself
 	await client.from("folders").delete().eq("id", folderId);
 }
+
+export async function GET(request: Request) {
+	try {
+		const client = await createClient();
+		const { data: userData, error: userError } = await client.auth.getUser();
+
+		if (userError || !userData?.user) {
+			return NextResponse.json(
+				{ error: "User not authenticated" },
+				{ status: 401 }
+			);
+		}
+
+		const { data: folders, error: foldersError } = await client
+			.from("folders")
+			.select("id, name, parent_id, created_at")
+			.eq("user_id", userData.user.id)
+			.order("name", { ascending: true });
+
+		if (foldersError) {
+			return NextResponse.json(
+				{ error: "Failed to fetch folders" },
+				{ status: 500 }
+			);
+		}
+
+		return NextResponse.json(folders);
+	} catch (error) {
+		console.error("Folder fetch error:", error);
+		return NextResponse.json(
+			{ error: "Failed to fetch folders" },
+			{ status: 500 }
+		);
+	}
+}

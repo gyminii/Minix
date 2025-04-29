@@ -126,12 +126,13 @@ const Table = ({
 		if (entry.type === "folder") {
 			router.push(`/drive/folders/${entry.id}`);
 		} else {
-			if ("url" in entry && entry.url) {
-				window.open(entry.url, "_blank", "noopener,noreferrer");
-			} else {
-				toast.error("File preview not available");
-				console.log("File clicked but no URL available:", entry);
-			}
+			console.log(entry);
+			// if ("url" in entry && entry.url) {
+			// 	window.open(entry.url, "_blank", "noopener,noreferrer");
+			// } else {
+			// 	toast.error("File preview not available");
+			// 	console.log("File clicked but no URL available:", entry);
+			// }
 		}
 	};
 
@@ -340,7 +341,10 @@ const Table = ({
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end">
-												<DropdownMenuItem onClick={() => handleDownload(entry)}>
+												<DropdownMenuItem
+													disabled={!Boolean(entry.url)}
+													onClick={() => handleDownload(entry)}
+												>
 													<Download className="mr-2 h-4 w-4" />
 													<span>Download</span>
 												</DropdownMenuItem>
