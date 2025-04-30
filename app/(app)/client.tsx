@@ -5,7 +5,6 @@ import { FolderListCards, SummaryCards, TableRecentFiles } from "../components";
 
 import Link from "next/link";
 
-// Animation variants for container
 const containerVariants = {
 	hidden: { opacity: 0 },
 	show: {
@@ -17,7 +16,6 @@ const containerVariants = {
 	},
 };
 
-// Animation variants for individual items
 const itemVariants = {
 	hidden: { opacity: 0, y: 20 },
 	show: {
@@ -31,7 +29,6 @@ const itemVariants = {
 	},
 };
 
-// Animation variants for title
 const titleVariants = {
 	hidden: { opacity: 0, y: -20 },
 	show: {
@@ -53,17 +50,14 @@ const ClientPage = () => {
 			initial="hidden"
 			animate="show"
 		>
-			{/* First item to appear */}
 			<motion.div className="w-full" variants={itemVariants} custom={0}>
 				<TableRecentFiles />
 			</motion.div>
 
-			{/* Second item to appear */}
 			<motion.div variants={itemVariants} custom={1} className="w-full">
 				<SummaryCards />
 			</motion.div>
 
-			{/* Third item to appear */}
 			<motion.h3
 				className="text-lg font-bold tracking-tight lg:text-xl cursor-pointer hover:text-primary"
 				variants={titleVariants}
@@ -72,7 +66,6 @@ const ClientPage = () => {
 				<Link href="/drive">Recently added folders</Link>
 			</motion.h3>
 
-			{/* Fourth item to appear - full width */}
 			<motion.div className="mb-4 w-full" variants={itemVariants} custom={3}>
 				<FolderListCards />
 			</motion.div>

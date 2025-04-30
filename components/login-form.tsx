@@ -25,15 +25,13 @@ export function LoginForm({
 		const supabase = createClient();
 		setIsLoading(true);
 		setError(null);
-		console.log("yo", window.location.origin);
 		try {
-			const { error, data } = await supabase.auth.signInWithOAuth({
+			const { error } = await supabase.auth.signInWithOAuth({
 				provider: "google",
 				options: {
 					redirectTo: `${window.location.origin}/auth/oauth?next=/`,
 				},
 			});
-			console.log(error, data);
 			if (error) throw error;
 		} catch (error: unknown) {
 			setError(error instanceof Error ? error.message : "An error occurred");

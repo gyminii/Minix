@@ -1,4 +1,5 @@
 "use client";
+
 import {
 	QueryClient,
 	QueryClientProvider as ReactQueryProvider,

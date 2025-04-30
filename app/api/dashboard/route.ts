@@ -36,17 +36,13 @@ const FILE_TYPES = {
 		"video/ogg",
 		"video/mpeg",
 	],
-	// All other file types will be categorized as "OTHERS"
 };
 
-// Get storage allocation from environment variables or use defaults
 const TOTAL_STORAGE = Number(process.env.TOTAL_STORAGE_GB || 25); // Default: 25 GB
 
 export async function GET() {
 	try {
 		const client = await createClient();
-
-		// Authenticate user
 		const { data: userData, error: userError } = await client.auth.getUser();
 		if (userError || !userData?.user) {
 			return NextResponse.json(

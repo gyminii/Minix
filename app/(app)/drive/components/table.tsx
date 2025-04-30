@@ -53,30 +53,8 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import type { Folder as FolderType } from "@/lib/types/type";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-
-// Add props type definition
-type TableProps = {
-	data: DriveEntry[];
-	isLoading: boolean;
-	error: Error | null;
-	createFolder: (name: string) => Promise<FolderType | null>;
-	deleteFolder: (folderId: string) => Promise<boolean>;
-	deleteFile: (fileId: string) => Promise<boolean>;
-	uploadFiles?: (
-		files: File[],
-		targetFolderId?: string | null
-	) => Promise<{
-		success?: Array<{ name: string; url: string | null }>;
-		failed?: Array<{ name: string; error: string }>;
-	}>;
-	isUploading?: boolean;
-	isCreatingFolder?: boolean;
-	isDeletingFolder?: boolean;
-	isDeletingFile?: boolean;
-};
 
 const getEntryIcon = (entry: DriveEntry) => {
 	if (entry.type === "folder") {
@@ -84,7 +62,7 @@ const getEntryIcon = (entry: DriveEntry) => {
 	}
 	return <File className="h-4 w-4 mr-2" />;
 };
-
+import type { TableProps } from "@/lib/types/type";
 const Table = ({
 	data,
 	isLoading,

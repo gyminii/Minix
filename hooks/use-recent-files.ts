@@ -4,7 +4,6 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 export interface FileAttachment {
 	id: string;
@@ -17,20 +16,6 @@ export interface FileAttachment {
 	folder_id?: string | null;
 	user_id?: string;
 }
-
-// Define type for file payload
-type FilePayload = {
-	id: string;
-	name: string;
-	created_at: string;
-	size: number;
-	type: string;
-	folder_id: string | null;
-	user_id: string;
-	path?: string;
-	url?: string;
-};
-
 export function useRecentFiles(limit = 5) {
 	const queryClient = useQueryClient();
 	const supabase = createClient();
@@ -47,7 +32,6 @@ export function useRecentFiles(limit = 5) {
 		staleTime: 1000 * 60, // 1 minute
 	});
 
-	// Set up a simplified realtime subscription just for files
 	useEffect(() => {
 		const channel = supabase
 			.channel("recent-files-changes")
@@ -58,8 +42,7 @@ export function useRecentFiles(limit = 5) {
 					schema: "public",
 					table: "files",
 				},
-				(_payload: RealtimePostgresChangesPayload<FilePayload>) => {
-					// Simply invalidate the query when any file changes
+				() => {
 					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
 				}
 			)

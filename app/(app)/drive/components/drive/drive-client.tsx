@@ -21,7 +21,6 @@ const DriveClient = () => {
 		isDeletingFolder,
 		isDeletingFile,
 	} = useDriveData(folderId);
-	console.log(data);
 	return (
 		<Table
 			data={data || []}

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { File, Folder } from "@/lib/types/type";
+import type { FileEntry, Folder } from "@/lib/types/type";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 			type: "folder",
 		}));
 
-		const fileEntries: File[] = filesRes.data.map((f) => ({
+		const fileEntries: FileEntry[] = filesRes.data.map((f) => ({
 			...f,
 			type: "file",
 		}));

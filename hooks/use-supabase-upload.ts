@@ -129,11 +129,8 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
 						...files.filter((f) => !successes.includes(f.name)),
 				  ]
 				: files;
-		console.log("PATH: ", path);
 		const responses = await Promise.all(
 			filesToUpload.map(async (file) => {
-				console.log("KEYL:", JSON.stringify(file, null, 4));
-
 				const { error } = await supabase.storage
 					.from(bucketName)
 					.upload(!!path ? `${path}/${file.name}` : file.name, file, {

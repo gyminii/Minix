@@ -15,13 +15,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-// import { StarFilledIcon } from "@radix-ui/react-icons";
 import {
 	Download,
 	Folder,
 	MoreVertical,
 	Share2,
-	// Star,
 	Trash2,
 	Loader2,
 } from "lucide-react";
@@ -43,10 +41,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 
-// Import the dashboard types
 import type { DashboardStats } from "@/lib/types/dashboard";
 
-// Animation variants
 const containerVariants = {
 	hidden: { opacity: 0 },
 	show: {
@@ -96,17 +92,13 @@ export function FolderListCards() {
 
 			return response.json();
 		},
-		// Update the onMutate function with proper types
 		onMutate: async (folderId) => {
-			// Cancel any outgoing refetches
 			await queryClient.cancelQueries({ queryKey: ["dashboard-stats"] });
 
-			// Snapshot the previous value
 			const previousData = queryClient.getQueryData<DashboardStats>([
 				"dashboard-stats",
 			]);
 
-			// Optimistically update to the new value
 			queryClient.setQueryData<DashboardStats>(["dashboard-stats"], (old) => {
 				if (!old || !old.folderStats) return old;
 				return {
@@ -121,17 +113,13 @@ export function FolderListCards() {
 		},
 		onSuccess: () => {
 			toast.success("Folder deleted successfully");
-
-			// Invalidate and refetch all relevant queries
 			queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 			queryClient.invalidateQueries({ queryKey: ["drive"] });
 			refreshDashboardStats();
-
 			setDeleteDialogOpen(false);
 			setFolderToDelete(null);
 		},
 		onError: (error, _, context) => {
-			// If the mutation fails, use the context returned from onMutate to roll back
 			if (context?.previousData) {
 				queryClient.setQueryData(["dashboard-stats"], context.previousData);
 			}
@@ -144,13 +132,11 @@ export function FolderListCards() {
 		},
 	});
 
-	// Function to handle folder deletion
 	const handleDeleteFolder = async (folderId: string) => {
 		setFolderToDelete(folderId);
 		setDeleteDialogOpen(true);
 	};
 
-	// Function to confirm folder deletion
 	const confirmDelete = async () => {
 		if (folderToDelete) {
 			try {
@@ -164,12 +150,8 @@ export function FolderListCards() {
 		}
 	};
 
-	// Function to copy shareable link
 	const handleCopyShareLink = (folderId: string, folderName: string) => {
-		// Create a shareable link (you might want to adjust this based on your app's URL structure)
 		const shareableLink = `${window.location.origin}/drive/folders/${folderId}`;
-
-		// Copy to clipboard
 		navigator.clipboard
 			.writeText(shareableLink)
 			.then(() => {
@@ -181,20 +163,14 @@ export function FolderListCards() {
 			});
 	};
 
-	// Update the handleDownloadFolder function to use our new API endpoint
 	const handleDownloadFolder = (folderId: string, folderName: string) => {
 		toast.info(`Preparing "${folderName}" for download...`);
-
-		// Create a hidden anchor element to trigger the download
 		const downloadLink = document.createElement("a");
 		downloadLink.href = `/api/folders/${folderId}/download`;
 		downloadLink.download = `${folderName}.zip`;
-
-		// Append to the document, click it, and remove it
 		document.body.appendChild(downloadLink);
 		downloadLink.click();
 		document.body.removeChild(downloadLink);
-
 		toast.success(`Download for "${folderName}" started`);
 	};
 

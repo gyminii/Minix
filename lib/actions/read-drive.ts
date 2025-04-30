@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "../supabase/server";
-import { DriveEntry, File, Folder } from "../types/type";
+import { DriveEntry, FileEntry, Folder } from "../types/type";
 
 // // Types
 // type FileNode = {
@@ -73,7 +73,7 @@ export const readDrive = async ({
 		type: "folder",
 	}));
 
-	const fileEntries: File[] = filesRes.data.map((f) => ({
+	const fileEntries: FileEntry[] = filesRes.data.map((f) => ({
 		...f,
 		type: "file",
 	}));

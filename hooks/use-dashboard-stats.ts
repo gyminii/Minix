@@ -1,29 +1,10 @@
 "use client";
 
+import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-
 // Import the dashboard types
 import type { DashboardStats } from "@/lib/types/dashboard";
-
-// Define types for payloads
-type FilePayload = {
-	id: string;
-	name: string;
-	size: number;
-	type: string;
-	folder_id: string | null;
-	user_id: string;
-};
-
-type FolderPayload = {
-	id: string;
-	name: string;
-	parent_id: string | null;
-	user_id: string;
-};
 
 export function useDashboardStats() {
 	const queryClient = useQueryClient();
@@ -38,10 +19,9 @@ export function useDashboardStats() {
 			}
 			return response.json();
 		},
-		staleTime: 1000 * 60 * 2, // 2 minutes
+		staleTime: 1000 * 60 * 5, // 5 minutes
 	});
 
-	// Set up a simplified realtime subscription for dashboard stats
 	useEffect(() => {
 		const channel = supabase
 			.channel("dashboard-stats-changes")
@@ -53,10 +33,7 @@ export function useDashboardStats() {
 					schema: "public",
 					table: "files",
 				},
-				(_payload: RealtimePostgresChangesPayload<FilePayload>) => {
-					// Simply invalidate the dashboard stats when any file changes
-					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-				}
+				() => queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
 			)
 			// Listen for folder changes
 			.on(
@@ -66,10 +43,7 @@ export function useDashboardStats() {
 					schema: "public",
 					table: "folders",
 				},
-				(_payload: RealtimePostgresChangesPayload<FolderPayload>) => {
-					// Simply invalidate the dashboard stats when any folder changes
-					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-				}
+				() => queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
 			)
 			.subscribe();
 
@@ -79,9 +53,8 @@ export function useDashboardStats() {
 	}, [queryClient, supabase]);
 
 	// Add a function to manually refresh the data
-	const refreshDashboardStats = () => {
+	const refreshDashboardStats = () =>
 		queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-	};
 
 	return {
 		...query,
