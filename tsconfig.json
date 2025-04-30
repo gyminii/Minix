@@ -29,13 +29,7 @@
 		"**/*.ts",
 		"**/*.tsx",
 		".next/types/**/*.ts",
-		"lib/pwa.cjs",
 		"next.config.mjs"
 	],
-	"exclude": [
-		"node_modules",
-		"components/ui/**/*",
-		"lib/pwa.cjs",
-		"next.config.mjs"
-	]
+	"exclude": ["node_modules", "components/ui/**/*", "next.config.mjs"]
 }

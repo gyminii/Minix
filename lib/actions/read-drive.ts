@@ -3,25 +3,6 @@
 import { createClient } from "../supabase/server";
 import { DriveEntry, FileEntry, Folder } from "../types/type";
 
-// // Types
-// type FileNode = {
-// 	id: string;
-// 	name: string;
-// 	created_at: string;
-// 	size: number;
-// 	type: string; // MIME type
-// };
-
-// type FolderEntry = {
-// 	id: string;
-// 	name: string;
-// 	created_at: string;
-// 	type: "folder";
-// };
-
-// type FileEntry = FileNode & { type: "file" };
-
-// type Entry = FolderEntry | FileEntry;
 /**
  * Creating folders
  * @param param0 name, parent folder

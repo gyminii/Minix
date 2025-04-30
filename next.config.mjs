@@ -1,7 +1,6 @@
-import withPWA from "./lib/pwa.cjs";
+import withPWA from "next-pwa";
 
 const nextConfig = {
-	/* config options here */
 	i18n: undefined,
 	compiler: {
 		removeConsole: process.env.NODE_ENV !== "development",
