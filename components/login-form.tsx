@@ -25,11 +25,12 @@ export function LoginForm({
 		const supabase = createClient();
 		setIsLoading(true);
 		setError(null);
+		console.log("yo", window.location.origin);
 		try {
 			const { error, data } = await supabase.auth.signInWithOAuth({
 				provider: "google",
 				options: {
-					redirectTo: `${process.env.BASE_URL}/auth/oauth?next=/`,
+					redirectTo: `${window.location.origin}/auth/oauth?next=/`,
 				},
 			});
 			console.log(error, data);
