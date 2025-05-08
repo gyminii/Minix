@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 					const { data } = await client.storage
 						.from("minix")
 						.createSignedUrl(filePath, 604800);
-
+					console.log(filePath);
 					// Insert file metadata into database
 					const { data: fileData, error: dbError } = await client
 						.from("files")

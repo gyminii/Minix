@@ -10,4 +10,5 @@ export interface PasteMetadata {
 export interface Paste extends PasteMetadata {
 	content: string;
 	user_id: string;
+	url: string | null;
 }

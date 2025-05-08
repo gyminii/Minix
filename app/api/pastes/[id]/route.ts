@@ -20,10 +20,11 @@ export async function GET(
 			data: { user },
 		} = await client.auth.getUser();
 
-		// Get the paste metadata directly
 		const { data: pasteData, error: pasteError } = await client
 			.from("pastes")
-			.select("id, title, syntax, folder_id, expires_at, user_id, created_at")
+			.select(
+				"id, title, syntax, folder_id, expires_at, user_id, created_at, url"
+			)
 			.eq("id", id)
 			.single();
 
@@ -31,7 +32,6 @@ export async function GET(
 			return NextResponse.json({ error: "Paste not found" }, { status: 404 });
 		}
 
-		// Check if paste has expired
 		if (pasteData.expires_at) {
 			const expiresAt = new Date(pasteData.expires_at);
 			if (expiresAt < new Date()) {
@@ -42,8 +42,6 @@ export async function GET(
 			}
 		}
 
-		// Check if user has access to this paste
-		// Allow access if the user is the owner or if no user is logged in (public access)
 		if (user && pasteData.user_id !== user.id) {
 			return NextResponse.json(
 				{ error: "You don't have permission to access this paste" },
@@ -65,7 +63,6 @@ export async function GET(
 		}
 
 		const content = await contentData.text();
-
 		const paste: Paste = {
 			id: pasteData.id,
 			title: pasteData.title,
@@ -75,6 +72,7 @@ export async function GET(
 			syntax: pasteData.syntax || "plaintext",
 			expires_at: pasteData.expires_at || null,
 			user_id: pasteData.user_id,
+			url: pasteData.url,
 		};
 
 		return NextResponse.json(paste);

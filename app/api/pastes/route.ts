@@ -49,13 +49,13 @@ export async function POST(req: Request) {
 		const pasteId = pasteData.id;
 
 		// Store the actual content in Supabase Storage
+		const pastePath = `pastes/${pasteId}.txt`;
 		const { error: storageError } = await client.storage
 			.from("minix")
-			.upload(`pastes/${pasteId}.txt`, content, {
+			.upload(pastePath, content, {
 				contentType: "text/plain",
 				upsert: true,
 			});
-
 		if (storageError) {
 			console.error("Error storing paste content:", storageError);
 			// Clean up the metadata if storage fails
@@ -104,17 +104,13 @@ export async function GET(req: Request) {
 			);
 		}
 
-		console.log("Fetching pastes for user:", user.id, "folder:", folderId);
-
-		// Query pastes directly from the pastes table
 		let query = client
 			.from("pastes")
-			.select("id, title, syntax, folder_id, expires_at, created_at")
+			.select("id, title, syntax, folder_id, expires_at, created_at, url")
 			.eq("user_id", user.id)
 			.order("created_at", { ascending: false })
 			.limit(limit);
 
-		// Filter by folder if specified
 		if (folderId) {
 			query = query.eq("folder_id", folderId);
 		} else {
@@ -131,12 +127,9 @@ export async function GET(req: Request) {
 			);
 		}
 
-		console.log("Pastes found:", pastesData?.length);
-
 		if (!pastesData || pastesData.length === 0) {
 			return NextResponse.json([]);
 		}
-
 		// Filter out expired pastes
 		const now = new Date();
 		const validPastes = pastesData
@@ -151,6 +144,7 @@ export async function GET(req: Request) {
 				folder_id: paste.folder_id,
 				expires_at: paste.expires_at,
 				created_at: paste.created_at,
+				url: paste.url,
 			}));
 
 		console.log("Valid pastes found:", validPastes.length);
