@@ -14,7 +14,7 @@ type Folder = {
 	created_at: string;
 	size?: number;
 	url?: string;
-	type: "folder";
+	type?: "folder" | string;
 };
 
 type DriveEntry = Folder | FileEntry;

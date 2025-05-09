@@ -1,7 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import type { PasteMetadata } from "@/lib/types/pastes";
 import { format } from "date-fns";
 import {
 	Clock,
@@ -12,25 +28,9 @@ import {
 	MoreHorizontal,
 	Trash2,
 } from "lucide-react";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
-import type { PasteMetadata } from "@/lib/types/pastes";
 
 interface PasteTableProps {
 	pastes: PasteMetadata[];
@@ -62,9 +62,16 @@ export function PasteTable({ pastes, onDelete, isLoading }: PasteTableProps) {
 	const router = useRouter();
 	const [deletingId, setDeletingId] = useState<string | null>(null);
 
-	const handleCopyLink = async (id: string) => {
-		const url = `${window.location.origin}/paste/${id}`;
-		await navigator.clipboard.writeText(url);
+	const handleCopyLink = async (paste: PasteMetadata) => {
+		if (!paste.url) {
+			toast.error("No URL available for this paste");
+			return;
+		}
+		if (!navigator.clipboard) {
+			toast.error("Clipboard API not supported in this browser");
+			return;
+		}
+		await navigator.clipboard.writeText(paste.url);
 		toast.success("Link copied to clipboard");
 	};
 
@@ -211,7 +218,8 @@ export function PasteTable({ pastes, onDelete, isLoading }: PasteTableProps) {
 												Edit
 											</DropdownMenuItem>
 											<DropdownMenuItem
-												onClick={() => handleCopyLink(paste.id)}
+												onClick={() => handleCopyLink(paste)}
+												disabled={!paste.url}
 											>
 												<Copy className="h-4 w-4 mr-2" />
 												Copy Link

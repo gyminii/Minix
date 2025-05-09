@@ -28,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useFolders } from "@/hooks/use-folders";
 import { usePastes } from "@/hooks/use-pastes";
-import { PasteTable } from "./components/table";
+import { PasteTable } from "../../components/pastes/table";
 import { expirationOptions, syntaxOptions } from "@/utils/pastes/options";
 
 // Animation variants

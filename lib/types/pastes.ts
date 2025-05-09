@@ -5,10 +5,10 @@ export interface PasteMetadata {
 	folder_id: string | null;
 	expires_at: string | null;
 	created_at: string;
+	url: string | null;
 }
 
 export interface Paste extends PasteMetadata {
 	content: string;
 	user_id: string;
-	url: string | null;
 }

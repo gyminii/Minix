@@ -26,12 +26,12 @@ import { expirationOptions, syntaxOptions } from "@/utils/pastes/options";
 import type { Paste } from "@/lib/types/pastes";
 import type { Folder } from "@/lib/types/type";
 
-interface EditFormProps {
+type EditFormProps = {
 	paste: Paste;
-	folders?: Folder[];
+	folders?: Folder[]; // Use the imported Folder type
 	onCancel: () => void;
 	onSave: (updatedPaste: Paste) => void;
-}
+};
 
 export function EditForm({ paste, folders, onCancel, onSave }: EditFormProps) {
 	const [title, setTitle] = useState(paste.title);

@@ -1,35 +1,7 @@
 "use client";
 
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFolders } from "@/hooks/use-folders";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -42,19 +14,19 @@ import {
 	Edit,
 	Folder,
 	Loader2,
-	Save,
 	Share2,
 	Trash2,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
 
+import { DeleteDialog } from "@/app/components/pastes/delete-dialog";
+import { EditForm } from "@/app/components/pastes/edit-form";
 import { ShareDialog } from "@/app/components/pastes/share-dialog";
+import { CodeHighlighter } from "@/app/components/pastes/syntax-highlighter";
 import type { Paste } from "@/lib/types/pastes";
-import { expirationOptions, syntaxOptions } from "@/utils/pastes/options";
+import { syntaxOptions } from "@/utils/pastes/options";
 import NextLink from "next/link";
 
 // Animation variants
@@ -87,20 +59,9 @@ export default function PasteViewPage() {
 	const [paste, setPaste] = useState<Paste | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isEditing, setIsEditing] = useState(false);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
 	const [showShareDialog, setShowShareDialog] = useState(false);
 	const [copySuccess, setCopySuccess] = useState(false);
-
-	// Edit form state
-	const [title, setTitle] = useState("");
-	const [content, setContent] = useState("");
-	const [syntax, setSyntax] = useState("plaintext");
-	const [expiration, setExpiration] = useState("never");
-	const [folderId, setFolderId] = useState<string | null>(null);
-
 	const { data: folders } = useFolders();
-
 	useEffect(() => {
 		const fetchPaste = async () => {
 			try {
@@ -124,28 +85,6 @@ export default function PasteViewPage() {
 
 				const data = (await response.json()) as Paste;
 				setPaste(data);
-
-				// Initialize form state with paste data
-				setTitle(data.title);
-				setContent(data.content);
-				setSyntax(data.syntax || "plaintext");
-				setFolderId(data.folder_id);
-
-				// Set expiration dropdown value based on expires_at
-				if (data.expires_at) {
-					const expiresAt = new Date(data.expires_at);
-					const now = new Date();
-					const diffMs = expiresAt.getTime() - now.getTime();
-					const diffMins = Math.round(diffMs / 60000);
-
-					if (diffMins <= 30) setExpiration("30m");
-					else if (diffMins <= 60) setExpiration("1h");
-					else if (diffMins <= 1440) setExpiration("1d");
-					else if (diffMins <= 10080) setExpiration("1w");
-					else setExpiration("1m");
-				} else {
-					setExpiration("never");
-				}
 			} catch (error) {
 				console.error("Error fetching paste:", error);
 				toast.error(
@@ -161,98 +100,9 @@ export default function PasteViewPage() {
 		}
 	}, [id, router]);
 
-	const handleSave = async () => {
-		if (!content.trim()) {
-			toast.error("Please enter some content for your paste");
-			return;
-		}
-
-		setIsSubmitting(true);
-
-		try {
-			// Calculate expiration date if selected
-			let expiresAt = null;
-			if (expiration !== "never") {
-				const now = new Date();
-				if (expiration === "30m")
-					expiresAt = new Date(now.getTime() + 30 * 60000);
-				else if (expiration === "1h")
-					expiresAt = new Date(now.getTime() + 60 * 60000);
-				else if (expiration === "1d")
-					expiresAt = new Date(now.getTime() + 24 * 60 * 60000);
-				else if (expiration === "1w")
-					expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60000);
-				else if (expiration === "1m")
-					expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60000);
-			}
-
-			const response = await fetch(`/api/pastes/${id}`, {
-				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					title,
-					content,
-					syntax,
-					expiresAt,
-					folderId,
-				}),
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error || "Failed to update paste");
-			}
-
-			// Update the paste data
-			if (paste) {
-				const updatedPaste: Paste = {
-					...paste,
-					title,
-					content,
-					syntax,
-					expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-					folder_id: folderId,
-				};
-
-				setPaste(updatedPaste);
-			}
-
-			setIsEditing(false);
-			toast.success("Paste updated successfully!");
-		} catch (error) {
-			console.error("Error updating paste:", error);
-			toast.error(
-				error instanceof Error ? error.message : "Failed to update paste"
-			);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const handleDelete = async () => {
-		setIsDeleting(true);
-
-		try {
-			const response = await fetch(`/api/pastes/${id}`, {
-				method: "DELETE",
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.error || "Failed to delete paste");
-			}
-
-			toast.success("Paste deleted successfully!");
-			router.push("/paste");
-		} catch (error) {
-			console.error("Error deleting paste:", error);
-			toast.error(
-				error instanceof Error ? error.message : "Failed to delete paste"
-			);
-			setIsDeleting(false);
-		}
+	const handleSavePaste = (updatedPaste: Paste) => {
+		setPaste(updatedPaste);
+		setIsEditing(false);
 	};
 
 	const handleCopyContent = () => {
@@ -361,8 +211,9 @@ export default function PasteViewPage() {
 					>
 						<Edit className="h-4 w-4" />
 					</Button>
-					<AlertDialog>
-						<AlertDialogTrigger asChild>
+					<DeleteDialog
+						pasteId={id as string}
+						trigger={
 							<Button
 								variant="outline"
 								size="icon"
@@ -371,147 +222,19 @@ export default function PasteViewPage() {
 							>
 								<Trash2 className="h-4 w-4" />
 							</Button>
-						</AlertDialogTrigger>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-								<AlertDialogDescription>
-									This action cannot be undone. This will permanently delete
-									your paste.
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction
-									onClick={handleDelete}
-									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									disabled={isDeleting}
-								>
-									{isDeleting ? (
-										<>
-											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-											Deleting...
-										</>
-									) : (
-										"Delete"
-									)}
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
+						}
+					/>
 				</div>
 			</motion.div>
 
 			<motion.div variants={itemVariants} className="w-full max-w-full">
 				{isEditing ? (
-					<Card>
-						<CardHeader>
-							<CardTitle>Edit Paste</CardTitle>
-							<CardDescription>
-								Make changes to your paste content, syntax highlighting, or
-								expiration time.
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-6">
-							<div className="space-y-2">
-								<Label htmlFor="title">Title</Label>
-								<Input
-									id="title"
-									value={title}
-									onChange={(e) => setTitle(e.target.value)}
-									placeholder="Enter a title for your paste"
-								/>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="content">Content</Label>
-								<Textarea
-									id="content"
-									value={content}
-									onChange={(e) => setContent(e.target.value)}
-									placeholder="Paste your code or text here..."
-									className="min-h-[300px] font-mono"
-								/>
-							</div>
-
-							<div className="grid gap-4 md:grid-cols-3">
-								<div className="space-y-2">
-									<Label htmlFor="syntax">Syntax Highlighting</Label>
-									<Select value={syntax} onValueChange={setSyntax}>
-										<SelectTrigger id="syntax">
-											<SelectValue placeholder="Select language" />
-										</SelectTrigger>
-										<SelectContent>
-											{syntaxOptions.map((option) => (
-												<SelectItem key={option.value} value={option.value}>
-													{option.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="expiration">Expiration</Label>
-									<Select value={expiration} onValueChange={setExpiration}>
-										<SelectTrigger id="expiration">
-											<SelectValue placeholder="Select expiration" />
-										</SelectTrigger>
-										<SelectContent>
-											{expirationOptions.map((option) => (
-												<SelectItem key={option.value} value={option.value}>
-													{option.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="folder">Save in Folder (Optional)</Label>
-									<Select
-										value={folderId || "root"}
-										onValueChange={(value) =>
-											setFolderId(value === "root" ? null : value)
-										}
-									>
-										<SelectTrigger id="folder">
-											<SelectValue placeholder="Select folder" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="root">Root (No Folder)</SelectItem>
-											{folders?.map((folder) => (
-												<SelectItem key={folder.id} value={folder.id}>
-													{folder.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-						</CardContent>
-						<CardFooter className="flex justify-between">
-							<Button variant="outline" onClick={() => setIsEditing(false)}>
-								Cancel
-							</Button>
-							<Button
-								onClick={handleSave}
-								disabled={isSubmitting || !content.trim()}
-							>
-								{isSubmitting ? (
-									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										Saving...
-									</>
-								) : (
-									<>
-										<Save className="mr-2 h-4 w-4" />
-										Save Changes
-									</>
-								)}
-							</Button>
-						</CardFooter>
-					</Card>
+					<EditForm
+						paste={paste}
+						folders={folders}
+						onCancel={() => setIsEditing(false)}
+						onSave={handleSavePaste}
+					/>
 				) : (
 					<Card className="w-full max-w-full">
 						<CardHeader>
@@ -532,71 +255,10 @@ export default function PasteViewPage() {
 						</CardHeader>
 						<CardContent className="w-full max-w-full overflow-hidden">
 							<div className="rounded-md border w-full max-w-full overflow-hidden">
-								{/* Custom wrapper for SyntaxHighlighter */}
-								<div className="w-full max-w-full overflow-hidden">
-									<SyntaxHighlighter
-										language={
-											paste.syntax === "plaintext" ? "text" : paste.syntax
-										}
-										style={vscDarkPlus}
-										showLineNumbers
-										wrapLines={true}
-										wrapLongLines={true}
-										customStyle={{
-											margin: 0,
-											padding: "1rem",
-											fontSize: "0.875rem",
-											borderRadius: "0",
-											maxHeight: "500px",
-											width: "100%",
-											maxWidth: "100%",
-											overflow: "hidden",
-											whiteSpace: "pre-wrap",
-											wordBreak: "break-word",
-											wordWrap: "break-word",
-										}}
-										codeTagProps={{
-											style: {
-												whiteSpace: "pre-wrap",
-												wordBreak: "break-word",
-												wordWrap: "break-word",
-												maxWidth: "100%",
-												display: "inline-block",
-											},
-										}}
-										PreTag={({ children, ...props }) => (
-											<pre
-												{...props}
-												style={{
-													...props.style,
-													whiteSpace: "pre-wrap",
-													wordBreak: "break-word",
-													wordWrap: "break-word",
-													maxWidth: "100%",
-													overflowX: "hidden",
-												}}
-											>
-												{children}
-											</pre>
-										)}
-										CodeTag={({ children, ...props }) => (
-											<code
-												{...props}
-												style={{
-													...props.style,
-													whiteSpace: "pre-wrap",
-													wordBreak: "break-word",
-													wordWrap: "break-word",
-													maxWidth: "100%",
-												}}
-											>
-												{children}
-											</code>
-										)}
-									>
-										{paste.content}
-									</SyntaxHighlighter>
-								</div>
+								<CodeHighlighter
+									content={paste.content}
+									language={paste.syntax || "plaintext"}
+								/>
 							</div>
 						</CardContent>
 					</Card>
