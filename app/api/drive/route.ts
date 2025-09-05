@@ -36,7 +36,10 @@ export async function GET(request: Request) {
 			.from("files")
 			.select("id, name, created_at, size, type, url")
 			.eq("user_id", userId);
-
+		const pastesQuery = supabase
+			.from("pastes")
+			.select("id, title, created_at, url")
+			.eq("user_id", userId);
 		if (folderId === null) {
 			foldersQuery.is("parent_id", null);
 			filesQuery.is("folder_id", null);

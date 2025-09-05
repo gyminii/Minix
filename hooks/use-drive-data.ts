@@ -19,6 +19,7 @@ type FolderPayload = {
 type FilePayload = {
 	id: string;
 	name: string;
+	title?: string;
 	created_at: string;
 	size: number;
 	type: string;
@@ -32,7 +33,6 @@ export function useDriveData(folderId: string | null) {
 	const queryClient = useQueryClient();
 	const supabase = createClient();
 
-	// Main query for drive data
 	const query = useQuery<DriveEntry[]>({
 		queryKey: ["drive", folderId],
 		queryFn: async () => {
@@ -46,27 +46,21 @@ export function useDriveData(folderId: string | null) {
 		staleTime: 10 * (60 * 1000),
 	});
 
-	// Set up Supabase realtime subscriptions - this is still needed to trigger React Query refetches
 	useEffect(() => {
-		// Create a channel for real-time updates
+		// Changes on folders table
 		const channel = supabase
 			.channel("drive-changes")
-			// Handle folder changes (INSERT, UPDATE, DELETE)
 			.on(
 				"postgres_changes",
 				{
-					event: "*", // Listen to all events
+					event: "*",
 					schema: "public",
 					table: "folders",
 				},
 				(payload: RealtimePostgresChangesPayload<FolderPayload>) => {
-					console.log("Folder change detected:", payload);
-
-					// Invalidate queries to ensure data is fresh
 					queryClient.invalidateQueries({ queryKey: ["drive"] });
 					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 
-					// Show appropriate toast based on the event
 					if (payload.eventType === "INSERT" && payload.new) {
 						toast.success(`Folder "${payload.new.name}" created`);
 					} else if (payload.eventType === "DELETE") {
@@ -76,18 +70,16 @@ export function useDriveData(folderId: string | null) {
 					}
 				}
 			)
-			// Handle file changes (INSERT, UPDATE, DELETE)
 			.on(
 				"postgres_changes",
 				{
-					event: "*", // Listen to all events
+					event: "*",
 					schema: "public",
 					table: "files",
 				},
 				(payload: RealtimePostgresChangesPayload<FilePayload>) => {
 					console.log("File change detected:", payload);
 
-					// Invalidate queries to ensure data is fresh
 					queryClient.invalidateQueries({ queryKey: ["drive"] });
 					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
 					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
@@ -139,7 +131,6 @@ export function useDriveData(folderId: string | null) {
 			return data.folder as Folder;
 		},
 		onSuccess: (newFolder) => {
-			// Optimistically update the cache
 			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
 				if (!old) return [newFolder];
 				return [...old, { ...newFolder, type: "folder" }];

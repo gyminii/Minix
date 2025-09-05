@@ -68,7 +68,6 @@ export default function PastePage() {
 	const [folderId, setFolderId] = useState<string | null>(selectedFolder);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Update folderId when URL parameter changes
 	useEffect(() => {
 		setFolderId(selectedFolder);
 	}, [selectedFolder]);

@@ -132,7 +132,6 @@ const Table = ({
 	const handleDownload = async (entry: DriveEntry) => {
 		try {
 			if (entry.type === "folder") {
-				// Use fetch to get the file
 				const response = await fetch(`/api/folders/${entry.id}/download`);
 
 				if (!response.ok) {
@@ -153,7 +152,6 @@ const Table = ({
 					}
 				}
 
-				// Convert the response to a blob
 				const blob = await response.blob();
 
 				// Create a download link and trigger the download
@@ -165,7 +163,6 @@ const Table = ({
 				document.body.appendChild(a);
 				a.click();
 
-				// Clean up
 				window.URL.revokeObjectURL(url);
 				document.body.removeChild(a);
 
@@ -299,7 +296,7 @@ const Table = ({
 											onClick={() => handleEntryClick(entry)}
 										>
 											{getEntryIcon(entry)}
-											<span>{entry.name}</span>
+											<span>{entry?.title || entry.name}</span>
 										</div>
 									</TableCell>
 									<TableCell>

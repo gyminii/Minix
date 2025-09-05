@@ -339,6 +339,13 @@ export async function GET(req: Request) {
 			.order("created_at", { ascending: false })
 			.limit(limit);
 
+		const { data: pastes, error: pastesError } = await client
+			.from("pastes")
+			.select("*")
+			.eq("user_id", user.id)
+			.order("created_at", { ascending: false })
+			.limit(limit);
+		console.log("PASTES:", pastes);
 		if (filesError) {
 			console.error("Error fetching files:", filesError);
 			return NextResponse.json(

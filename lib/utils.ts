@@ -24,10 +24,10 @@ export function generateMeta({
 	return {
 		title: `${title}`,
 		description: description,
-		metadataBase: new URL(`${process.env.BASE_URL}`),
-		openGraph: {
-			images: [`${process.env.ASSETS_URL}/seo.jpg`],
-		},
+		// metadataBase: new URL(`${process.env.BASE_URL}`),
+		// openGraph: {
+		// 	images: [`${process.env.ASSETS_URL}/seo.jpg`],
+		// },
 	};
 }
 
