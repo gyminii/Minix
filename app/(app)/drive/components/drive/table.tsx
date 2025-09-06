@@ -14,7 +14,7 @@ import {
 	Share2,
 	Trash2,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useDriveData } from "@/hooks/use-drive-data";
@@ -63,11 +63,13 @@ const getEntryIcon = (entry: DriveEntry) =>
 		<File className="mr-2 h-4 w-4" />
 	);
 
-export default function Table() {
+export default function Table({
+	folder: folderId = null,
+}: {
+	folder?: string | null;
+}) {
 	const router = useRouter();
-	const { path } = useParams();
-	const folderId = path ? (path as string[])[1] : null;
-
+	console.log(folderId);
 	const {
 		data = [],
 		isLoading,
@@ -103,7 +105,7 @@ export default function Table() {
 
 	const handleEntryClick = (entry: DriveEntry) => {
 		if (entry.type === "folder") {
-			router.push(`/drive/folders/${entry.id}`);
+			router.push(`/drive?folder=${entry.id}`);
 		} else {
 			// open or preview file here if you add that flow
 			console.log(entry);

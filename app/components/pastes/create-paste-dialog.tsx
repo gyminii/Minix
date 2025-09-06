@@ -107,8 +107,6 @@ export default function CreatePasteDialog({ defaultFolderId = null }: Props) {
 			router.push(`/paste/${data.id}`);
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to create paste");
-			// eslint-disable-next-line no-console
-			console.error(e);
 		} finally {
 			setField("submitting", false);
 		}
@@ -136,9 +134,9 @@ export default function CreatePasteDialog({ defaultFolderId = null }: Props) {
 
 				<div className="grid gap-4">
 					<div className="space-y-2">
-						<Label htmlFor="paste-title">Title</Label>
+						<Label htmlFor="paste-name">Name</Label>
 						<Input
-							id="paste-title"
+							id="paste-name"
 							value={form.name}
 							onChange={(e) => setField("name", e.target.value)}
 							placeholder="Enter a name for your paste"

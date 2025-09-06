@@ -51,11 +51,9 @@ export default function View({
 	const router = useRouter();
 	const searchParams = useSearchParams();
 
-	// Local UI state, seeded from server props
 	const [view, setView] = useState<ViewMode>(initialView);
 	const [folderId, setFolderId] = useState<string | null>(initialFolderId);
 
-	// Keep in sync with URL if it changes on the client
 	useEffect(() => {
 		setView(searchParams.get("view") === "list" ? "list" : "cards");
 		setFolderId(searchParams.get("folder") || null);
@@ -69,7 +67,6 @@ export default function View({
 		deletePaste,
 	} = usePastes(folderId);
 
-	// URL helpers
 	const setQueryParam = (key: string, value?: string | null) => {
 		const params = new URLSearchParams(searchParams.toString());
 		if (!value || value === "root") params.delete(key);

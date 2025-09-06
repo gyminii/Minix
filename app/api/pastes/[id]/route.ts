@@ -52,7 +52,7 @@ export async function GET(
 		// Get the paste content from storage
 		const { data: contentData, error: contentError } = await client.storage
 			.from("minix")
-			.download(`pastes/${id}.txt`);
+			.download(`pastes/${pasteData.name}.txt`);
 
 		if (contentError) {
 			console.error("Error fetching paste content:", contentError);

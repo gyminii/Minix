@@ -1,3 +1,4 @@
+// components/TableRecentFiles.tsx
 "use client";
 
 import Link from "next/link";
@@ -41,11 +42,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import {
+	useDashboardStats,
+	DASHBOARD_STATS_KEY,
+} from "@/hooks/use-dashboard-stats";
+import type { RecentFile } from "@/lib/types/dashboard";
 
 function formatFileSize(bytes: number): string {
-	if (bytes === 0) return "0 Bytes";
+	if (!bytes) return "0 Bytes";
 	const k = 1024;
 	const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -55,72 +62,48 @@ function formatFileSize(bytes: number): string {
 }
 
 function getFileIcon(type: string) {
-	if (type.startsWith("image/")) return <ImageIcon className="size-4" />;
-	if (type.startsWith("video/")) return <Film className="size-4" />;
-	if (type.startsWith("audio/")) return <Music className="size-4" />;
+	if (type?.startsWith("image/")) return <ImageIcon className="size-4" />;
+	if (type?.startsWith("video/")) return <Film className="size-4" />;
+	if (type?.startsWith("audio/")) return <Music className="size-4" />;
 	if (
-		type.includes("zip") ||
-		type.includes("rar") ||
-		type.includes("7z") ||
-		type.includes("tar") ||
-		type.includes("gzip")
+		type?.includes("zip") ||
+		type?.includes("rar") ||
+		type?.includes("7z") ||
+		type?.includes("tar") ||
+		type?.includes("gzip")
 	)
 		return <Archive className="size-4" />;
 	if (
-		type.includes("pdf") ||
-		type.includes("doc") ||
-		type.includes("xls") ||
-		type.includes("ppt") ||
-		type.includes("text") ||
-		type.includes("markdown")
+		type?.includes("pdf") ||
+		type?.includes("doc") ||
+		type?.includes("xls") ||
+		type?.includes("ppt") ||
+		type?.includes("text") ||
+		type?.includes("markdown")
 	)
 		return <FileText className="size-4" />;
 	return <File className="size-4" />;
-}
-
-interface FileAttachment {
-	id: string;
-	name: string;
-	size: number;
-	type: string;
-	url: string;
-	created_at: string;
-	path?: string;
-	folder_id?: string | null;
-	user_id?: string;
 }
 
 export function TableRecentFiles() {
 	const queryClient = useQueryClient();
 	const prefersReducedMotion = useReducedMotion();
 
-	const {
-		data: files,
-		isLoading,
-		error,
-	} = useQuery<FileAttachment[]>({
-		queryKey: ["recent-files"],
-		queryFn: async ({ signal }) => {
-			const response = await fetch("/api/files?limit=5", { signal });
-			if (!response.ok) throw new Error("Failed to fetch recent files");
-			return response.json();
-		},
-		staleTime: 5 * 60 * 1000,
-	});
+	const { data, isLoading, error } = useDashboardStats();
+	const files: RecentFile[] = data?.recentFiles ?? [];
 
 	const deleteFileMutation = useMutation({
 		mutationFn: async (fileId: string) => {
-			const response = await fetch("/api/files", {
+			const res = await fetch("/api/files", {
 				method: "DELETE",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ fileIds: [fileId] }),
 			});
-			if (!response.ok) throw new Error("Failed to delete file");
-			return response.json();
+			if (!res.ok) throw new Error("Failed to delete file");
+			return res.json();
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["recent-files"] });
-			queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+			queryClient.invalidateQueries({ queryKey: DASHBOARD_STATS_KEY });
 		},
 	});
 
@@ -129,11 +112,12 @@ export function TableRecentFiles() {
 		try {
 			await deleteFileMutation.mutateAsync(fileId);
 		} catch (err) {
+			// eslint-disable-next-line no-console
 			console.error("Error deleting file:", err);
 		}
 	};
 
-	const tooManyRows = (files?.length ?? 0) >= 12;
+	const tooManyRows = files.length >= 12;
 	const disableMotion = prefersReducedMotion || tooManyRows;
 
 	const CardWrapper = disableMotion ? "div" : motion.div;
@@ -270,16 +254,21 @@ export function TableRecentFiles() {
 												<DropdownMenuContent align="end">
 													<DropdownMenuItem asChild>
 														<a
-															href={file?.url}
+															href={file?.url ?? undefined}
 															download
 															target="_blank"
 															rel="noopener noreferrer"
+															className={
+																!file?.url
+																	? "pointer-events-none opacity-50"
+																	: ""
+															}
 														>
 															<Download className="mr-2 h-4 w-4" />
 															<span>Download</span>
 														</a>
 													</DropdownMenuItem>
-													<DropdownMenuItem>
+													<DropdownMenuItem disabled>
 														<Share2 className="mr-2 h-4 w-4" />
 														<span>Share</span>
 													</DropdownMenuItem>
@@ -287,6 +276,7 @@ export function TableRecentFiles() {
 													<DropdownMenuItem
 														onClick={() => handleDelete(file.id)}
 														disabled={deleteFileMutation.isPending}
+														className="text-destructive focus:text-destructive"
 													>
 														{deleteFileMutation.isPending ? (
 															<Loader2 className="mr-2 h-4 w-4 animate-spin" />

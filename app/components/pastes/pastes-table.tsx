@@ -98,7 +98,6 @@ export default function PastesTable({
 			toast.success("Paste deleted.");
 		} catch (e) {
 			toast.error("Failed to delete paste.");
-			// eslint-disable-next-line no-console
 			console.error(e);
 		}
 	};

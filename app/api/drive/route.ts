@@ -31,32 +31,44 @@ export async function GET(request: Request) {
 		const foldersQuery = supabase
 			.from("folders")
 			.select("id, name, created_at")
-			.eq("user_id", userId);
+			.eq("user_id", userId)
+			[folderId === null ? "is" : "eq"](
+				"parent_id",
+				folderId === null ? null : folderId
+			);
+
 		const filesQuery = supabase
 			.from("files")
 			.select("id, name, created_at, size, type, url")
-			.eq("user_id", userId);
+			.eq("user_id", userId)
+			[folderId === null ? "is" : "eq"](
+				"folder_id",
+				folderId === null ? null : folderId
+			);
+
 		const pastesQuery = supabase
 			.from("pastes")
-			.select("id, title, created_at, url")
-			.eq("user_id", userId);
-		if (folderId === null) {
-			foldersQuery.is("parent_id", null);
-			filesQuery.is("folder_id", null);
-		} else {
-			foldersQuery.eq("parent_id", folderId);
-			filesQuery.eq("folder_id", folderId);
-		}
+			.select("id, name, created_at, url")
+			.eq("user_id", userId)
+			[folderId === null ? "is" : "eq"](
+				"folder_id",
+				folderId === null ? null : folderId
+			);
 
-		// Execute both queries in parallel
-		const [foldersRes, filesRes] = await Promise.all([
+		const [foldersRes, filesRes, pastesRes] = await Promise.all([
 			foldersQuery,
 			filesQuery,
+			pastesQuery,
 		]);
 
-		if (foldersRes.error || filesRes.error) {
+		if (foldersRes.error || filesRes.error || pastesRes.error) {
 			return NextResponse.json(
-				{ error: foldersRes.error?.message || filesRes.error?.message },
+				{
+					error:
+						foldersRes.error?.message ||
+						filesRes.error?.message ||
+						pastesRes.error?.message,
+				},
 				{ status: 500 }
 			);
 		}

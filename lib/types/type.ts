@@ -1,32 +1,47 @@
-type FileEntry = {
+export type FileEntry = {
 	id: string;
 	name: string;
 	created_at: string;
 	size: number;
+
 	title?: string;
 	url?: string;
 	path?: string;
-	type: string;
+
+	/**
+	 * Discriminator:
+	 * - "file": any regular uploaded file
+	 * - "paste": a text file (we'll store it as .txt in storage)
+	 */
+	type: "file" | "paste";
+
+	// tiny, optional hints (safe to ignore elsewhere)
+	mime?: string;
+	syntax?: string | null;
+	expires_at?: string | null;
 };
 
-type Folder = {
+export type Folder = {
 	id: string;
 	name: string;
 	created_at: string;
+
 	size?: number;
 	url?: string;
-	type?: "folder" | string;
+	type: "folder";
 };
 
-type DriveEntry = Folder | FileEntry;
+export type DriveEntry = Folder | FileEntry;
 
-type TableProps = {
+export type TableProps = {
 	data: DriveEntry[];
 	isLoading: boolean;
 	error: Error | null;
+
 	createFolder: (name: string) => Promise<Folder | null>;
 	deleteFolder: (folderId: string) => Promise<boolean>;
 	deleteFile: (fileId: string) => Promise<boolean>;
+
 	uploadFiles?: (
 		files: globalThis.File[],
 		targetFolderId?: string | null
@@ -34,29 +49,14 @@ type TableProps = {
 		success?: Array<{ name: string; url: string | null }>;
 		failed?: Array<{ name: string; error: string }>;
 	}>;
+
 	isUploading?: boolean;
 	isCreatingFolder?: boolean;
 	isDeletingFolder?: boolean;
 	isDeletingFile?: boolean;
 };
 
-type DriveEntry1 = {
-	id: string;
-	created_at: string;
-	user_id: string;
-	folder_id: string | null;
-	/**
-	 * Represents the kind of entry, allowing for conditional logic.
-	 * - 'folder': A directory for organizing other entries.
-	 * - 'file': A user-uploaded file (e.g., image, document).
-	 * - 'paste': A text snippet or code paste.
-	 */
-	entry_type: "folder" | "file" | "paste";
-	// Optional properties for specific entry types
-	path?: string; // For 'file' entries, the path in Supabase Storage.
-	size?: number; // For 'file' entries, the size in bytes.
-	url?: string; // The URL to access the content.
-	syntax?: string; // For 'paste' entries, the code syntax.
-	expires_at?: string | null; // For 'paste' entries, the expiration date.
-};
-export type { FileEntry, Folder, DriveEntry, TableProps };
+export const isFolder = (e: DriveEntry): e is Folder => e.type === "folder";
+export const isFile = (e: DriveEntry): e is FileEntry =>
+	e.type === "file" || e.type === "paste";
+export const isPaste = (e: DriveEntry): e is FileEntry => e.type === "paste";

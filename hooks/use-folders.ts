@@ -1,13 +1,7 @@
 "use client";
 
+import { Folder } from "@/lib/types/type";
 import { useQuery } from "@tanstack/react-query";
-
-type Folder = {
-	id: string;
-	name: string;
-	parent_id: string | null;
-	created_at: string;
-};
 
 export function useFolders() {
 	return useQuery<Folder[]>({

@@ -34,7 +34,7 @@ type EditFormProps = {
 };
 
 export function EditForm({ paste, folders, onCancel, onSave }: EditFormProps) {
-	const [title, setTitle] = useState(paste.title);
+	const [name, setName] = useState(paste.name);
 	const [content, setContent] = useState(paste.content);
 	const [syntax, setSyntax] = useState(paste.syntax || "plaintext");
 	const [expiration, setExpiration] = useState<string>(() => {
@@ -85,7 +85,7 @@ export function EditForm({ paste, folders, onCancel, onSave }: EditFormProps) {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					title,
+					name,
 					content,
 					syntax,
 					expiresAt,
@@ -101,7 +101,7 @@ export function EditForm({ paste, folders, onCancel, onSave }: EditFormProps) {
 			// Update the paste data
 			const updatedPaste: Paste = {
 				...paste,
-				title,
+				name,
 				content,
 				syntax,
 				expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
@@ -131,12 +131,12 @@ export function EditForm({ paste, folders, onCancel, onSave }: EditFormProps) {
 			</CardHeader>
 			<CardContent className="space-y-6">
 				<div className="space-y-2">
-					<Label htmlFor="title">Title</Label>
+					<Label htmlFor="name">Name</Label>
 					<Input
-						id="title"
-						value={title}
-						onChange={(e) => setTitle(e.target.value)}
-						placeholder="Enter a title for your paste"
+						id="name"
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+						placeholder="Enter a name for your paste"
 					/>
 				</div>
 

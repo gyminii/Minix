@@ -37,7 +37,6 @@ type FilePayload = {
 };
 
 // ────────────────────────────────────────────────────────────────
-/** Query key helpers to prevent typos and enable prefix invalidation */
 const DRIVE_KEY = (folderId: string | null) => ["drive", folderId] as const;
 const DRIVE_PREFIX: QueryKey = ["drive"];
 const DASHBOARD_STATS_KEY = ["dashboard-stats"] as const;
@@ -48,7 +47,6 @@ export function useDriveData(folderId: string | null) {
 	const queryClient = useQueryClient();
 	const supabase = createClient();
 
-	// Prefab invalidators
 	const invalidateDrive = () =>
 		queryClient.invalidateQueries({ queryKey: DRIVE_PREFIX, exact: false });
 
@@ -59,9 +57,6 @@ export function useDriveData(folderId: string | null) {
 			queryClient.invalidateQueries({ queryKey: RECENT_FILES_KEY }),
 		]);
 
-	// ────────────────────────────────────────────────────────────────
-	// Data query (uses AbortSignal from RQ to avoid race conditions)
-	// ────────────────────────────────────────────────────────────────
 	const query = useQuery<DriveEntry[]>({
 		queryKey: DRIVE_KEY(folderId),
 		queryFn: async ({ signal }) => {
@@ -70,13 +65,10 @@ export function useDriveData(folderId: string | null) {
 			if (!res.ok) throw new Error("Failed to fetch drive data");
 			return res.json();
 		},
-		staleTime: 10 * 60 * 1000, // 10 minutes
-		gcTime: 30 * 60 * 1000, // optional: keep in cache for 30 minutes
+		staleTime: 10 * 60 * 1000,
+		gcTime: 30 * 60 * 1000,
 	});
 
-	// ────────────────────────────────────────────────────────────────
-	// Realtime subscription (single subscription; not tied to folderId)
-	// ────────────────────────────────────────────────────────────────
 	useEffect(() => {
 		const channel = supabase
 			.channel("drive-changes")

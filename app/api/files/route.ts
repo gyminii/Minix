@@ -182,10 +182,8 @@ export async function POST(req: Request) {
 }
 export async function DELETE(req: Request) {
 	try {
-		// Parse the request body to get the array of file IDs
 		const { fileIds } = await req.json();
 
-		// Validate input
 		if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
 			return NextResponse.json(
 				{ error: "Invalid input: fileIds must be a non-empty array" },
@@ -193,10 +191,8 @@ export async function DELETE(req: Request) {
 			);
 		}
 
-		// Initialize Supabase client
 		const supabase = await createClient();
 
-		// Get the current user to ensure they can only delete their own files
 		const {
 			data: { user },
 			error: userError,
@@ -206,12 +202,11 @@ export async function DELETE(req: Request) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 		const userId = String(user.id);
-		// Step 1: Get file paths for all files to be deleted
 		const { data: filesToDelete, error: fetchError } = await supabase
 			.from("files")
 			.select("id, path, name")
 			.in("id", fileIds)
-			.eq("user_id", userId); // Security check: only delete own files
+			.eq("user_id", userId);
 
 		if (fetchError) {
 			console.error("Error fetching files to delete:", fetchError);
@@ -221,7 +216,6 @@ export async function DELETE(req: Request) {
 			);
 		}
 
-		// If no files found or fewer files than requested, some might not exist or belong to the user
 		if (!filesToDelete || filesToDelete.length === 0) {
 			return NextResponse.json(
 				{
@@ -232,14 +226,12 @@ export async function DELETE(req: Request) {
 			);
 		}
 
-		// If some files weren't found, inform the user
 		if (filesToDelete.length < fileIds.length) {
 			console.warn(
 				`Only ${filesToDelete.length} out of ${fileIds.length} files were found and will be deleted`
 			);
 		}
 
-		// Step 2: Delete files from storage bucket
 		const storageResults = [];
 		const storageErrors = [];
 
@@ -268,7 +260,6 @@ export async function DELETE(req: Request) {
 			}
 		}
 
-		// Step 3: Delete files from the database
 		const { error: deleteError } = await supabase
 			.from("files")
 			.delete()
@@ -312,7 +303,6 @@ export async function DELETE(req: Request) {
 		);
 	}
 }
-
 export async function GET(req: Request) {
 	try {
 		const url = new URL(req.url);
@@ -331,30 +321,26 @@ export async function GET(req: Request) {
 			);
 		}
 
-		// Get recent files for the user, ordered by creation date
-		const { data: files, error: filesError } = await client
+		const { data: fileItems, error: filesError } = await client
 			.from("files")
 			.select("*")
 			.eq("user_id", user.id)
 			.order("created_at", { ascending: false })
 			.limit(limit);
 
-		const { data: pastes, error: pastesError } = await client
+		const { data: pasteItems, error: pastesError } = await client
 			.from("pastes")
 			.select("*")
 			.eq("user_id", user.id)
 			.order("created_at", { ascending: false })
 			.limit(limit);
-		console.log("PASTES:", pastes);
-		if (filesError) {
-			console.error("Error fetching files:", filesError);
+		if (filesError || pastesError) {
 			return NextResponse.json(
-				{ error: "Failed to fetch files" },
+				{ error: "Failed to fetch files or pastes" },
 				{ status: 500 }
 			);
 		}
-
-		// For each file, get a signed URL
+		const files = [...fileItems, ...pasteItems];
 		const filesWithUrls = await Promise.all(
 			files.map(async (file) => {
 				if (file.path) {

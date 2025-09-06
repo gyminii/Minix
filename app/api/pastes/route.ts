@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
 
 export async function POST(req: Request) {
 	try {
@@ -39,6 +38,7 @@ export async function POST(req: Request) {
 			.select()
 			.single();
 
+		console.log("After paste creating", pasteData);
 		if (metaError) {
 			console.error("Error creating paste metadata:", metaError);
 			return NextResponse.json(
@@ -47,10 +47,8 @@ export async function POST(req: Request) {
 			);
 		}
 
-		const pasteId = pasteData.id;
-
 		// Store the actual content in Supabase Storage
-		const pastePath = `pastes/${pasteId}.txt`;
+		const pastePath = `pastes/${pasteData.name}.txt`;
 		const { error: storageError } = await client.storage
 			.from("minix")
 			.upload(pastePath, content, {
@@ -59,8 +57,7 @@ export async function POST(req: Request) {
 			});
 		if (storageError) {
 			console.error("Error storing paste content:", storageError);
-			// Clean up the metadata if storage fails
-			await client.from("pastes").delete().eq("id", pasteId);
+			await client.from("pastes").delete().eq("id", pasteData.id);
 			return NextResponse.json(
 				{ error: "Failed to store paste content" },
 				{ status: 500 }
@@ -69,7 +66,7 @@ export async function POST(req: Request) {
 
 		return NextResponse.json(
 			{
-				id: pasteId,
+				id: pasteData.id,
 				name: pasteData.name,
 				syntax: pasteData.syntax,
 				expiresAt: pasteData.expires_at,
