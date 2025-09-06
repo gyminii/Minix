@@ -1,6 +1,6 @@
 export interface PasteMetadata {
 	id: string;
-	title: string;
+	name: string;
 	syntax: string;
 	folder_id: string | null;
 	expires_at: string | null;

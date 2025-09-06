@@ -1,8 +1,8 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import type { UseSupabaseUploadReturn } from "@/hooks/use-supabase-upload";
 import { Button } from "@/components/ui/button";
+import type { UseSupabaseUploadReturn } from "@/hooks/use-supabase-upload";
+import { cn } from "@/lib/utils";
 import { CheckCircle, File, Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import {
@@ -10,7 +10,6 @@ import {
 	type PropsWithChildren,
 	useCallback,
 	useContext,
-	useEffect,
 } from "react";
 
 export const formatBytes = (
@@ -91,16 +90,11 @@ const DropzoneContent = ({ className }: { className?: string }) => {
 		maxFiles,
 		isSuccess,
 	} = useDropzoneContext();
-	console.log(successes);
 	const exceedMaxFiles = files.length > maxFiles;
 	const handleSubmitFiles = useCallback(
 		async () => await onUpload(),
 		[onUpload]
 	);
-	useEffect(() => {
-		if (!isSuccess && !successes) return;
-		console.log("after issucces", successes);
-	}, [isSuccess, successes]);
 
 	const handleRemoveFile = useCallback(
 		(fileName: string) => {

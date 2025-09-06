@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 			);
 		}
 
-		const { content, title, expiresAt, folderId, syntax } = await req.json();
+		const { content, name, expiresAt, folderId, syntax } = await req.json();
 
 		if (!content) {
 			return NextResponse.json(
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 		const { data: pasteData, error: metaError } = await client
 			.from("pastes")
 			.insert({
-				title: title || "Untitled Paste",
+				name: name || "Untitled Paste",
 				user_id: user.id,
 				folder_id: folderId || null,
 				syntax: syntax || "plaintext",
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 		return NextResponse.json(
 			{
 				id: pasteId,
-				title: pasteData.title,
+				name: pasteData.name,
 				syntax: pasteData.syntax,
 				expiresAt: pasteData.expires_at,
 				created_at: pasteData.created_at,
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
 
 		let query = client
 			.from("pastes")
-			.select("id, title, syntax, folder_id, expires_at, created_at, url")
+			.select("id, name, syntax, folder_id, expires_at, created_at, url")
 			.eq("user_id", user.id)
 			.order("created_at", { ascending: false })
 			.limit(limit);
@@ -131,7 +131,6 @@ export async function GET(req: Request) {
 		if (!pastesData || pastesData.length === 0) {
 			return NextResponse.json([]);
 		}
-		// Filter out expired pastes
 		const now = new Date();
 		const validPastes = pastesData
 			.filter((paste) => {
@@ -140,7 +139,7 @@ export async function GET(req: Request) {
 			})
 			.map((paste) => ({
 				id: paste.id,
-				title: paste.title,
+				name: paste.name,
 				syntax: paste.syntax,
 				folder_id: paste.folder_id,
 				expires_at: paste.expires_at,

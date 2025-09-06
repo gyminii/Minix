@@ -1,13 +1,20 @@
 "use client";
 
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
+import {
+	useQuery,
+	useQueryClient,
+	useMutation,
+	QueryKey,
+} from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { DriveEntry, Folder } from "@/lib/types/type";
 import { toast } from "sonner";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
-// Define types for Supabase realtime payloads
+// ────────────────────────────────────────────────────────────────
+// Supabase realtime payload shapes (narrowed for our tables)
+// ────────────────────────────────────────────────────────────────
 type FolderPayload = {
 	id: string;
 	name: string;
@@ -29,38 +36,55 @@ type FilePayload = {
 	url?: string;
 };
 
+// ────────────────────────────────────────────────────────────────
+/** Query key helpers to prevent typos and enable prefix invalidation */
+const DRIVE_KEY = (folderId: string | null) => ["drive", folderId] as const;
+const DRIVE_PREFIX: QueryKey = ["drive"];
+const DASHBOARD_STATS_KEY = ["dashboard-stats"] as const;
+const RECENT_FILES_KEY = ["recent-files"] as const;
+// ────────────────────────────────────────────────────────────────
+
 export function useDriveData(folderId: string | null) {
 	const queryClient = useQueryClient();
 	const supabase = createClient();
 
+	// Prefab invalidators
+	const invalidateDrive = () =>
+		queryClient.invalidateQueries({ queryKey: DRIVE_PREFIX, exact: false });
+
+	const invalidateAll = () =>
+		Promise.all([
+			invalidateDrive(),
+			queryClient.invalidateQueries({ queryKey: DASHBOARD_STATS_KEY }),
+			queryClient.invalidateQueries({ queryKey: RECENT_FILES_KEY }),
+		]);
+
+	// ────────────────────────────────────────────────────────────────
+	// Data query (uses AbortSignal from RQ to avoid race conditions)
+	// ────────────────────────────────────────────────────────────────
 	const query = useQuery<DriveEntry[]>({
-		queryKey: ["drive", folderId],
-		queryFn: async () => {
+		queryKey: DRIVE_KEY(folderId),
+		queryFn: async ({ signal }) => {
 			const url = folderId ? `/api/drive?folderId=${folderId}` : "/api/drive";
-			const response = await fetch(url);
-			if (!response.ok) {
-				throw new Error("Failed to fetch drive data");
-			}
-			return response.json();
+			const res = await fetch(url, { signal });
+			if (!res.ok) throw new Error("Failed to fetch drive data");
+			return res.json();
 		},
-		staleTime: 10 * (60 * 1000),
+		staleTime: 10 * 60 * 1000, // 10 minutes
+		gcTime: 30 * 60 * 1000, // optional: keep in cache for 30 minutes
 	});
 
+	// ────────────────────────────────────────────────────────────────
+	// Realtime subscription (single subscription; not tied to folderId)
+	// ────────────────────────────────────────────────────────────────
 	useEffect(() => {
-		// Changes on folders table
 		const channel = supabase
 			.channel("drive-changes")
 			.on(
 				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "folders",
-				},
+				{ event: "*", schema: "public", table: "folders" },
 				(payload: RealtimePostgresChangesPayload<FolderPayload>) => {
-					queryClient.invalidateQueries({ queryKey: ["drive"] });
-					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-
+					void invalidateAll();
 					if (payload.eventType === "INSERT" && payload.new) {
 						toast.success(`Folder "${payload.new.name}" created`);
 					} else if (payload.eventType === "DELETE") {
@@ -72,19 +96,9 @@ export function useDriveData(folderId: string | null) {
 			)
 			.on(
 				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "files",
-				},
+				{ event: "*", schema: "public", table: "files" },
 				(payload: RealtimePostgresChangesPayload<FilePayload>) => {
-					console.log("File change detected:", payload);
-
-					queryClient.invalidateQueries({ queryKey: ["drive"] });
-					queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
-
-					// Show appropriate toast based on the event
+					void invalidateAll();
 					if (payload.eventType === "INSERT" && payload.new) {
 						toast.success(`File "${payload.new.name}" uploaded`);
 					} else if (payload.eventType === "DELETE") {
@@ -95,126 +109,111 @@ export function useDriveData(folderId: string | null) {
 				}
 			)
 			.subscribe((status) => {
-				console.log("Subscription status:", status);
 				if (status === "CHANNEL_ERROR") {
-					console.error("Supabase real-time subscription error");
+					// keep UX-friendly messaging
 					toast.error(
 						"Real-time updates unavailable. Please refresh the page manually."
 					);
-				} else if (status === "SUBSCRIBED") {
-					console.log("Successfully subscribed to real-time updates");
 				}
 			});
 
-		// Cleanup function
 		return () => {
 			supabase.removeChannel(channel);
 		};
-	}, [folderId, queryClient, supabase]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [queryClient]); // avoid resubscribing when folderId changes
 
-	// Create folder mutation
+	// ────────────────────────────────────────────────────────────────
+	// Mutations
+	// ────────────────────────────────────────────────────────────────
+
+	// Create folder
 	const createFolderMutation = useMutation({
 		mutationFn: async (name: string) => {
-			const response = await fetch("/api/folders", {
+			const res = await fetch("/api/folders", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name, parent_id: folderId }),
 			});
-
-			const data = await response.json();
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to create folder");
-			}
-
+			const data: { error?: string; folder?: Folder } = await res.json();
+			if (!res.ok) throw new Error(data.error || "Failed to create folder");
 			return data.folder as Folder;
 		},
 		onSuccess: (newFolder) => {
-			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
-				if (!old) return [newFolder];
-				return [...old, { ...newFolder, type: "folder" }];
-			});
+			// Immediate optimistic-feel update; realtime will also reconcile
+			queryClient.setQueryData<DriveEntry[]>(DRIVE_KEY(folderId), (old) => [
+				...(old ?? []),
+				{ ...(newFolder as Folder), type: "folder" } as DriveEntry,
+			]);
+			// keep other consumers fresh
+			void invalidateDrive();
 		},
-		onError: (error) => {
-			console.error("Error creating folder:", error);
-			toast.error(`Failed to create folder: ${(error as Error).message}`);
+		onError: (err) => {
+			toast.error(`Failed to create folder: ${(err as Error).message}`);
 		},
 	});
 
-	// Delete folder mutation
+	// Delete folder (with rollback)
 	const deleteFolderMutation = useMutation({
-		mutationFn: async (folderId: string) => {
-			const response = await fetch("/api/folders", {
+		mutationFn: async (id: string) => {
+			const res = await fetch("/api/folders", {
 				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ folderIds: [folderId] }),
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ folderIds: [id] }),
 			});
-
-			const data = await response.json();
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to delete folder");
-			}
-
+			const data: { error?: string } = await res.json();
+			if (!res.ok) throw new Error(data.error || "Failed to delete folder");
 			return true;
 		},
-		onMutate: async (deletedFolderId) => {
-			// Optimistically update the cache
-			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
-				if (!old) return [];
-				return old.filter(
-					(entry) => !(entry.type === "folder" && entry.id === deletedFolderId)
-				);
-			});
+		onMutate: async (deletedId) => {
+			const key = DRIVE_KEY(folderId);
+			await queryClient.cancelQueries({ queryKey: key });
+			const prev = queryClient.getQueryData<DriveEntry[]>(key);
+			queryClient.setQueryData<DriveEntry[]>(key, (old) =>
+				(old ?? []).filter((e) => !(e.type === "folder" && e.id === deletedId))
+			);
+			return { prev, key };
 		},
-		onError: (error) => {
-			console.error("Error deleting folder:", error);
-			toast.error(`Failed to delete folder: ${(error as Error).message}`);
-
-			// Invalidate to refetch the correct data
-			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
+		onError: (err, _vars, ctx) => {
+			if (ctx?.prev) queryClient.setQueryData(ctx.key!, ctx.prev);
+			toast.error(`Failed to delete folder: ${(err as Error).message}`);
+		},
+		onSettled: () => {
+			void invalidateDrive();
 		},
 	});
 
-	// Delete file mutation
+	// Delete file (with rollback)
 	const deleteFileMutation = useMutation({
 		mutationFn: async (fileId: string) => {
-			const response = await fetch("/api/files", {
+			const res = await fetch("/api/files", {
 				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ fileIds: [fileId] }),
 			});
-
-			const data = await response.json();
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to delete file");
-			}
-
+			const data: { error?: string } = await res.json();
+			if (!res.ok) throw new Error(data.error || "Failed to delete file");
 			return true;
 		},
-		onMutate: async (deletedFileId) => {
-			// Optimistically update the cache
-			queryClient.setQueryData<DriveEntry[]>(["drive", folderId], (old) => {
-				if (!old) return [];
-				return old.filter(
-					(entry) => !(entry.type !== "folder" && entry.id === deletedFileId)
-				);
-			});
+		onMutate: async (deletedId) => {
+			const key = DRIVE_KEY(folderId);
+			await queryClient.cancelQueries({ queryKey: key });
+			const prev = queryClient.getQueryData<DriveEntry[]>(key);
+			queryClient.setQueryData<DriveEntry[]>(key, (old) =>
+				(old ?? []).filter((e) => !(e.type !== "folder" && e.id === deletedId))
+			);
+			return { prev, key };
 		},
-		onError: (error) => {
-			console.error("Error deleting file:", error);
-			toast.error(`Failed to delete file: ${(error as Error).message}`);
-
-			// Invalidate to refetch the correct data
-			queryClient.invalidateQueries({ queryKey: ["drive", folderId] });
+		onError: (err, _vars, ctx) => {
+			if (ctx?.prev) queryClient.setQueryData(ctx.key!, ctx.prev);
+			toast.error(`Failed to delete file: ${(err as Error).message}`);
+		},
+		onSettled: () => {
+			void invalidateDrive();
 		},
 	});
 
-	// Upload files mutation
+	// Upload files (appends to cache if API returns created files)
 	const uploadFilesMutation = useMutation({
 		mutationFn: async ({
 			files,
@@ -224,60 +223,52 @@ export function useDriveData(folderId: string | null) {
 			targetFolderId?: string | null;
 		}) => {
 			const formData = new FormData();
+			files.forEach((file) => formData.append("files", file));
 
-			// Append each file to the FormData
-			files.forEach((file: File) => {
-				formData.append("files", file);
-			});
-
-			// Add folder ID if provided
 			const folderIdToUse =
 				targetFolderId !== undefined ? targetFolderId : folderId;
 			if (folderIdToUse) formData.append("folder_id", folderIdToUse);
 
-			// Send the request
-			const res = await fetch("/api/files", {
-				method: "POST",
-				body: formData,
-			});
-
-			// Handle the response
-			const result = await res.json();
-			if (!res.ok) {
-				throw new Error(result.error || "Upload failed");
-			}
-
+			const res = await fetch("/api/files", { method: "POST", body: formData });
+			const result: { error?: string; files?: DriveEntry[] } = await res.json();
+			if (!res.ok) throw new Error(result.error || "Upload failed");
 			return result;
 		},
-		onError: (error) => {
-			console.error("Upload error:", error);
-			toast.error(`Upload failed: ${(error as Error).message}`);
+		onSuccess: (result) => {
+			if (Array.isArray(result.files) && result.files.length) {
+				queryClient.setQueryData<DriveEntry[]>(
+					DRIVE_KEY(folderId),
+					(old = []) => [...old, ...result.files!]
+				);
+			}
+			void invalidateDrive();
+			void queryClient.invalidateQueries({ queryKey: RECENT_FILES_KEY });
+		},
+		onError: (err) => {
+			toast.error(`Upload failed: ${(err as Error).message}`);
 		},
 	});
 
-	// Wrapper functions with simpler APIs
-	const createFolder = async (name: string) => {
-		return createFolderMutation.mutateAsync(name);
-	};
-
-	const deleteFolder = async (folderId: string) => {
-		return deleteFolderMutation.mutateAsync(folderId);
-	};
-
-	const deleteFile = async (fileId: string) => {
-		return deleteFileMutation.mutateAsync(fileId);
-	};
-
-	const uploadFiles = async (files: File[], targetFolderId?: string | null) => {
-		return uploadFilesMutation.mutateAsync({ files, targetFolderId });
-	};
+	// ────────────────────────────────────────────────────────────────
+	// Friendly wrappers
+	// ────────────────────────────────────────────────────────────────
+	const createFolder = (name: string) => createFolderMutation.mutateAsync(name);
+	const deleteFolder = (id: string) => deleteFolderMutation.mutateAsync(id);
+	const deleteFile = (id: string) => deleteFileMutation.mutateAsync(id);
+	const uploadFiles = (files: File[], targetFolderId?: string | null) =>
+		uploadFilesMutation.mutateAsync({ files, targetFolderId });
 
 	return {
+		// query state
 		...query,
+
+		// actions
 		createFolder,
 		deleteFolder,
 		deleteFile,
 		uploadFiles,
+
+		// mutation flags
 		isUploading: uploadFilesMutation.isPending,
 		isCreatingFolder: createFolderMutation.isPending,
 		isDeletingFolder: deleteFolderMutation.isPending,

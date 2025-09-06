@@ -28,7 +28,7 @@ type TableProps = {
 	deleteFolder: (folderId: string) => Promise<boolean>;
 	deleteFile: (fileId: string) => Promise<boolean>;
 	uploadFiles?: (
-		files: globalThis.File[], // Use globalThis.File to explicitly reference browser's File
+		files: globalThis.File[],
 		targetFolderId?: string | null
 	) => Promise<{
 		success?: Array<{ name: string; url: string | null }>;
@@ -52,13 +52,6 @@ type DriveEntry1 = {
 	 * - 'paste': A text snippet or code paste.
 	 */
 	entry_type: "folder" | "file" | "paste";
-
-	/**
-	 * The display name for the entry. For files and folders, this is 'name'.
-	 * For pastes, this is 'title'.
-	 */
-	display_name: string;
-
 	// Optional properties for specific entry types
 	path?: string; // For 'file' entries, the path in Supabase Storage.
 	size?: number; // For 'file' entries, the size in bytes.

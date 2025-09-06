@@ -1,5 +1,5 @@
-import DriveClient from "../components/drive/drive-client";
+import Table from "../components/drive/table";
 
-const DrivePage = () => <DriveClient />;
+const DrivePage = () => <Table />;
 
 export default DrivePage;

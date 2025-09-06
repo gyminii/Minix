@@ -2,75 +2,39 @@
 
 import { motion } from "framer-motion";
 import { FolderListCards, SummaryCards, TableRecentFiles } from "../components";
-
 import Link from "next/link";
 
-const containerVariants = {
-	hidden: { opacity: 0 },
-	show: {
-		opacity: 1,
-		transition: {
-			staggerChildren: 0.15,
-			delayChildren: 0.2,
-		},
-	},
+const fadeInUp = {
+	hidden: { opacity: 0, y: 12 },
+	show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-const itemVariants = {
-	hidden: { opacity: 0, y: 20 },
-	show: {
-		opacity: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-		},
-	},
-};
-
-const titleVariants = {
-	hidden: { opacity: 0, y: -20 },
-	show: {
-		opacity: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 300,
-			damping: 30,
-		},
-	},
-};
-
-const ClientPage = () => {
+export default function ClientPage() {
 	return (
 		<motion.div
 			className="space-y-4"
-			variants={containerVariants}
 			initial="hidden"
 			animate="show"
+			transition={{ staggerChildren: 0.1 }}
 		>
-			<motion.div className="w-full" variants={itemVariants} custom={0}>
+			<motion.div variants={fadeInUp}>
 				<TableRecentFiles />
 			</motion.div>
 
-			<motion.div variants={itemVariants} custom={1} className="w-full">
+			<motion.div variants={fadeInUp}>
 				<SummaryCards />
 			</motion.div>
 
 			<motion.h3
 				className="text-lg font-bold tracking-tight lg:text-xl cursor-pointer hover:text-primary"
-				variants={titleVariants}
-				custom={2}
+				variants={fadeInUp}
 			>
 				<Link href="/drive">Recently added folders</Link>
 			</motion.h3>
 
-			<motion.div className="mb-4 w-full" variants={itemVariants} custom={3}>
+			<motion.div variants={fadeInUp}>
 				<FolderListCards />
 			</motion.div>
 		</motion.div>
 	);
-};
-
-export default ClientPage;
+}

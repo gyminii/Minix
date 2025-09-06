@@ -165,7 +165,7 @@ export function PasteTable({ pastes, onDelete, isLoading }: PasteTableProps) {
 								>
 									<div className="flex items-center">
 										<Code2 className="h-4 w-4 mr-2 text-muted-foreground" />
-										<span>{paste.title}</span>
+										<span>{paste.name}</span>
 									</div>
 								</TableCell>
 								<TableCell>

@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
 
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
 	ChevronRight,
@@ -14,6 +15,11 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { useDriveData } from "@/hooks/use-drive-data";
+import { getFolderPath } from "@/lib/actions/breadcrumb";
+import type { DriveEntry } from "@/lib/types/type";
 
 import { FileUploadDialog } from "@/app/components";
 import CreateFolderDialog from "@/components/dialogs/create-folder-dialog";
@@ -41,10 +47,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { getFolderPath } from "@/lib/actions/breadcrumb";
-import type { DriveEntry } from "@/lib/types/type";
-
-// Add the Breadcrumb component imports
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -53,39 +55,39 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
 
-const getEntryIcon = (entry: DriveEntry) => {
-	if (entry.type === "folder") {
-		return <Folder className="h-4 w-4 mr-2" />;
-	}
-	return <File className="h-4 w-4 mr-2" />;
-};
-import type { TableProps } from "@/lib/types/type";
-const Table = ({
-	data,
-	isLoading,
-	deleteFolder,
-	deleteFile,
-	isDeletingFolder,
-	isDeletingFile,
-}: TableProps) => {
+const getEntryIcon = (entry: DriveEntry) =>
+	entry.type === "folder" ? (
+		<Folder className="mr-2 h-4 w-4" />
+	) : (
+		<File className="mr-2 h-4 w-4" />
+	);
+
+export default function Table() {
 	const router = useRouter();
 	const { path } = useParams();
-	const folderId = path ? path[1] : null;
+	const folderId = path ? (path as string[])[1] : null;
+
+	const {
+		data = [],
+		isLoading,
+		deleteFolder,
+		deleteFile,
+		isDeletingFolder,
+		isDeletingFile,
+	} = useDriveData(folderId);
+
 	const [breadcrumbs, setBreadcrumbs] = useState<
 		Array<{ id: string; name: string }>
 	>([]);
 	const [breadcrumbsLoading, setBreadcrumbsLoading] = useState(false);
-	// Fetch breadcrumb path when folder ID changes
+
 	useEffect(() => {
 		const fetchBreadcrumbs = async () => {
 			if (!folderId) {
 				setBreadcrumbs([]);
 				return;
 			}
-
 			setBreadcrumbsLoading(true);
 			try {
 				const path = await getFolderPath(folderId);
@@ -96,7 +98,6 @@ const Table = ({
 				setBreadcrumbsLoading(false);
 			}
 		};
-
 		fetchBreadcrumbs();
 	}, [folderId]);
 
@@ -104,21 +105,13 @@ const Table = ({
 		if (entry.type === "folder") {
 			router.push(`/drive/folders/${entry.id}`);
 		} else {
+			// open or preview file here if you add that flow
 			console.log(entry);
-			// if ("url" in entry && entry.url) {
-			// 	window.open(entry.url, "_blank", "noopener,noreferrer");
-			// } else {
-			// 	toast.error("File preview not available");
-			// 	console.log("File clicked but no URL available:", entry);
-			// }
 		}
 	};
 
 	const handleDelete = async (entry: DriveEntry) => {
-		if (!confirm(`Are you sure you want to delete "${entry.name}"?`)) {
-			return;
-		}
-
+		if (!confirm(`Are you sure you want to delete "${entry.name}"?`)) return;
 		try {
 			if (entry.type === "folder") {
 				await deleteFolder(entry.id);
@@ -129,32 +122,24 @@ const Table = ({
 			console.error(`Error deleting ${entry.type}:`, error);
 		}
 	};
+
 	const handleDownload = async (entry: DriveEntry) => {
 		try {
 			if (entry.type === "folder") {
 				const response = await fetch(`/api/folders/${entry.id}/download`);
-
 				if (!response.ok) {
 					const errorData = await response
 						.json()
 						.catch(() => ({ error: "Download failed" }));
 					throw new Error(errorData.error || "Failed to download folder");
 				}
-
-				// Get the filename from the Content-Disposition header or use a default name
 				const contentDisposition = response.headers.get("Content-Disposition");
 				let filename = `${entry.name}.zip`;
-
 				if (contentDisposition) {
-					const filenameMatch = contentDisposition.match(/filename="(.+)"/i);
-					if (filenameMatch && filenameMatch[1]) {
-						filename = filenameMatch[1];
-					}
+					const match = contentDisposition.match(/filename="(.+)"/i);
+					if (match?.[1]) filename = match[1];
 				}
-
 				const blob = await response.blob();
-
-				// Create a download link and trigger the download
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement("a");
 				a.style.display = "none";
@@ -162,10 +147,8 @@ const Table = ({
 				a.download = filename;
 				document.body.appendChild(a);
 				a.click();
-
 				window.URL.revokeObjectURL(url);
 				document.body.removeChild(a);
-
 				toast.success(`Downloaded ${entry.name}`);
 			} else {
 				if ("url" in entry && entry.url) {
@@ -178,7 +161,6 @@ const Table = ({
 					document.body.appendChild(a);
 					a.click();
 					document.body.removeChild(a);
-
 					toast.success(`Downloaded ${entry.name}`);
 				} else {
 					toast.error("File URL not available");
@@ -192,6 +174,7 @@ const Table = ({
 			);
 		}
 	};
+
 	return (
 		<Card>
 			<CardHeader>
@@ -200,7 +183,7 @@ const Table = ({
 						<BreadcrumbList>
 							<BreadcrumbItem>
 								<BreadcrumbLink href="/drive" className="flex items-center">
-									<Home className="h-4 w-4 mr-1" />
+									<Home className="mr-1 h-4 w-4" />
 									Home
 								</BreadcrumbLink>
 							</BreadcrumbItem>
@@ -240,6 +223,7 @@ const Table = ({
 					</div>
 				</CardAction>
 			</CardHeader>
+
 			<CardContent>
 				<DataTable>
 					<TableHeader>
@@ -250,6 +234,7 @@ const Table = ({
 							<TableHead />
 						</TableRow>
 					</TableHeader>
+
 					<TableBody>
 						{isLoading ? (
 							<TableRow>
@@ -292,11 +277,11 @@ const Table = ({
 								>
 									<TableCell className="font-medium">
 										<div
-											className="flex items-center cursor-pointer hover:underline"
+											className="flex cursor-pointer items-center hover:underline"
 											onClick={() => handleEntryClick(entry)}
 										>
 											{getEntryIcon(entry)}
-											<span>{entry?.title || entry.name}</span>
+											<span>{entry.name}</span>
 										</div>
 									</TableCell>
 									<TableCell>
@@ -354,6 +339,4 @@ const Table = ({
 			</CardContent>
 		</Card>
 	);
-};
-
-export default Table;
+}

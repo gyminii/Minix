@@ -23,7 +23,7 @@ export async function GET(
 		const { data: pasteData, error: pasteError } = await client
 			.from("pastes")
 			.select(
-				"id, title, syntax, folder_id, expires_at, user_id, created_at, url"
+				"id, name, syntax, folder_id, expires_at, user_id, created_at, url"
 			)
 			.eq("id", id)
 			.single();
@@ -65,7 +65,7 @@ export async function GET(
 		const content = await contentData.text();
 		const paste: Paste = {
 			id: pasteData.id,
-			title: pasteData.title,
+			name: pasteData.name,
 			content,
 			created_at: pasteData.created_at,
 			folder_id: pasteData.folder_id,
@@ -131,12 +131,11 @@ export async function PUT(
 		}
 
 		// Get update data
-		const { content, title, expiresAt, folderId, syntax } =
-			await request.json();
+		const { content, name, expiresAt, folderId, syntax } = await request.json();
 
 		// Update paste metadata
 		const updateData: Record<string, unknown> = {};
-		if (title) updateData.title = title;
+		if (name) updateData.name = name;
 		if (folderId !== undefined) updateData.folder_id = folderId;
 		if (syntax) updateData.syntax = syntax;
 		if (expiresAt !== undefined) updateData.expires_at = expiresAt;

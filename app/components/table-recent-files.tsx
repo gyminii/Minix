@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import {
 	MoreHorizontal,
@@ -15,7 +16,7 @@ import {
 	Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,73 +44,40 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Animation variants
-const cardVariants = {
-	hidden: { opacity: 0, scale: 0.95, y: 20 },
-	show: {
-		opacity: 1,
-		scale: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-			delay: 0.3, // Slight delay for this component
-		},
-	},
-};
-
-const tableRowVariants = {
-	hidden: { opacity: 0, x: -20 },
-	show: (i: number) => ({
-		opacity: 1,
-		x: 0,
-		transition: {
-			delay: 0.5 + i * 0.1,
-			duration: 0.5,
-			ease: "easeOut",
-		},
-	}),
-};
-
 function formatFileSize(bytes: number): string {
 	if (bytes === 0) return "0 Bytes";
 	const k = 1024;
 	const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return (
-		Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-	);
+	return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${
+		sizes[i]
+	}`;
 }
 
 function getFileIcon(type: string) {
-	if (type.startsWith("image/")) {
-		return <ImageIcon className="size-4" />;
-	} else if (type.startsWith("video/")) {
-		return <Film className="size-4" />;
-	} else if (type.startsWith("audio/")) {
-		return <Music className="size-4" />;
-	} else if (
+	if (type.startsWith("image/")) return <ImageIcon className="size-4" />;
+	if (type.startsWith("video/")) return <Film className="size-4" />;
+	if (type.startsWith("audio/")) return <Music className="size-4" />;
+	if (
 		type.includes("zip") ||
 		type.includes("rar") ||
 		type.includes("7z") ||
 		type.includes("tar") ||
 		type.includes("gzip")
-	) {
+	)
 		return <Archive className="size-4" />;
-	} else if (
+	if (
 		type.includes("pdf") ||
 		type.includes("doc") ||
 		type.includes("xls") ||
 		type.includes("ppt") ||
 		type.includes("text") ||
 		type.includes("markdown")
-	) {
+	)
 		return <FileText className="size-4" />;
-	} else {
-		return <File className="size-4" />;
-	}
+	return <File className="size-4" />;
 }
+
 interface FileAttachment {
 	id: string;
 	name: string;
@@ -121,8 +89,10 @@ interface FileAttachment {
 	folder_id?: string | null;
 	user_id?: string;
 }
+
 export function TableRecentFiles() {
 	const queryClient = useQueryClient();
+	const prefersReducedMotion = useReducedMotion();
 
 	const {
 		data: files,
@@ -130,30 +100,22 @@ export function TableRecentFiles() {
 		error,
 	} = useQuery<FileAttachment[]>({
 		queryKey: ["recent-files"],
-		queryFn: async () => {
-			const response = await fetch("/api/files?limit=5");
-			if (!response.ok) {
-				throw new Error("Failed to fetch recent files");
-			}
+		queryFn: async ({ signal }) => {
+			const response = await fetch("/api/files?limit=5", { signal });
+			if (!response.ok) throw new Error("Failed to fetch recent files");
 			return response.json();
 		},
+		staleTime: 5 * 60 * 1000,
 	});
 
-	// Delete file mutation
 	const deleteFileMutation = useMutation({
 		mutationFn: async (fileId: string) => {
 			const response = await fetch("/api/files", {
 				method: "DELETE",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ fileIds: [fileId] }),
 			});
-
-			if (!response.ok) {
-				throw new Error("Failed to delete file");
-			}
-
+			if (!response.ok) throw new Error("Failed to delete file");
 			return response.json();
 		},
 		onSuccess: () => {
@@ -163,16 +125,25 @@ export function TableRecentFiles() {
 	});
 
 	const handleDelete = async (fileId: string) => {
-		if (!confirm("Are you sure you want to delete this file?")) {
-			return;
-		}
-
+		if (!confirm("Are you sure you want to delete this file?")) return;
 		try {
 			await deleteFileMutation.mutateAsync(fileId);
-		} catch (error) {
-			console.error("Error deleting file:", error);
+		} catch (err) {
+			console.error("Error deleting file:", err);
 		}
 	};
+
+	const tooManyRows = (files?.length ?? 0) >= 12;
+	const disableMotion = prefersReducedMotion || tooManyRows;
+
+	const CardWrapper = disableMotion ? "div" : motion.div;
+	const cardProps = disableMotion
+		? {}
+		: {
+				initial: { opacity: 0, y: 8 },
+				animate: { opacity: 1, y: 0 },
+				transition: { duration: 0.25, ease: "easeOut" },
+		  };
 
 	if (isLoading) {
 		return (
@@ -213,7 +184,7 @@ export function TableRecentFiles() {
 											<Skeleton className="h-5 w-24" />
 										</TableCell>
 										<TableCell className="text-right">
-											<Skeleton className="h-8 w-8 rounded-full ml-auto" />
+											<Skeleton className="ml-auto h-8 w-8 rounded-full" />
 										</TableCell>
 									</TableRow>
 								))}
@@ -231,7 +202,7 @@ export function TableRecentFiles() {
 					<CardTitle>Recently Uploaded Files</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className="text-center py-4 text-muted-foreground">
+					<div className="py-4 text-center text-muted-foreground">
 						Failed to load recent files
 					</div>
 				</CardContent>
@@ -240,7 +211,7 @@ export function TableRecentFiles() {
 	}
 
 	return (
-		<motion.div variants={cardVariants} initial="hidden" animate="show" layout>
+		<CardWrapper {...cardProps}>
 			<Card>
 				<CardHeader className="relative">
 					<CardTitle>Recently Uploaded Files</CardTitle>
@@ -255,6 +226,7 @@ export function TableRecentFiles() {
 						</div>
 					</CardAction>
 				</CardHeader>
+
 				<CardContent>
 					<Table>
 						<TableHeader>
@@ -265,22 +237,19 @@ export function TableRecentFiles() {
 								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
+
 						<TableBody>
 							{files && files.length > 0 ? (
-								files.map((file, index) => (
-									<motion.tr
+								files.map((file) => (
+									<TableRow
 										key={file.id}
-										custom={index}
-										variants={tableRowVariants}
-										initial="hidden"
-										animate="show"
 										className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
 									>
 										<TableCell className="font-medium">
 											<Link
 												href={file.url || "#"}
 												target={file.url ? "_blank" : undefined}
-												className="text-muted-foreground hover:text-primary flex items-center space-x-2 hover:underline"
+												className="flex items-center text-muted-foreground hover:text-primary hover:underline"
 											>
 												{getFileIcon(file.type)}
 												<span className="ml-2">{file.name}</span>
@@ -329,7 +298,7 @@ export function TableRecentFiles() {
 												</DropdownMenuContent>
 											</DropdownMenu>
 										</TableCell>
-									</motion.tr>
+									</TableRow>
 								))
 							) : (
 								<TableRow>
@@ -342,6 +311,6 @@ export function TableRecentFiles() {
 					</Table>
 				</CardContent>
 			</Card>
-		</motion.div>
+		</CardWrapper>
 	);
 }
