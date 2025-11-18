@@ -163,7 +163,7 @@ export default function PasteViewPage() {
 						</NextLink>
 					</Button>
 					<div>
-						<h1 className="text-3xl font-bold tracking-tight">{paste.title}</h1>
+						<h1 className="text-3xl font-bold tracking-tight">{paste.name}</h1>
 						<div className="flex items-center text-sm text-muted-foreground mt-1">
 							<span className="mr-4">
 								Created:{" "}

@@ -107,8 +107,6 @@ export default function CreatePasteDialog({ defaultFolderId = null }: Props) {
 			router.push(`/paste/${data.id}`);
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to create paste");
-			// eslint-disable-next-line no-console
-			console.error(e);
 		} finally {
 			setField("submitting", false);
 		}
