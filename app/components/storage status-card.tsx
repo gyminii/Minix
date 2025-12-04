@@ -15,22 +15,6 @@ import { Button } from "@/components/ui/button";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Animation variants
-const cardVariants = {
-	hidden: { opacity: 0, scale: 0.95, y: 20 },
-	show: {
-		opacity: 1,
-		scale: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-			delay: 0.2, // Slight delay for this card
-		},
-	},
-};
-
 export function StorageStatusCard() {
 	const { data, isLoading } = useDashboardStats();
 
@@ -60,7 +44,7 @@ export function StorageStatusCard() {
 	const storageInfo = data?.storageInfo || { used: 0, total: 0, percentage: 0 };
 
 	return (
-		<motion.div variants={cardVariants} initial="hidden" animate="show" layout>
+		<motion.div initial="hidden" animate="show" layout>
 			<Card>
 				<CardHeader>
 					<CardTitle>Storage Space Used</CardTitle>

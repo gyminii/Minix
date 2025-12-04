@@ -29,30 +29,6 @@ import type { Paste } from "@/lib/types/pastes";
 import { syntaxOptions } from "@/utils/pastes/options";
 import NextLink from "next/link";
 
-// Animation variants
-const containerVariants = {
-	hidden: { opacity: 0 },
-	visible: {
-		opacity: 1,
-		transition: {
-			staggerChildren: 0.1,
-		},
-	},
-};
-
-const itemVariants = {
-	hidden: { opacity: 0, y: 20 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-		},
-	},
-};
-
 export default function PasteViewPage() {
 	const router = useRouter();
 	const { id } = useParams() as { id: string };
@@ -147,15 +123,11 @@ export default function PasteViewPage() {
 
 	return (
 		<motion.div
-			variants={containerVariants}
 			initial="hidden"
 			animate="visible"
 			className="w-full max-w-full"
 		>
-			<motion.div
-				variants={itemVariants}
-				className="mb-6 flex items-center justify-between"
-			>
+			<motion.div className="mb-6 flex items-center justify-between">
 				<div className="flex items-center">
 					<Button variant="outline" size="icon" asChild className="mr-4">
 						<NextLink href="/paste">
@@ -227,7 +199,7 @@ export default function PasteViewPage() {
 				</div>
 			</motion.div>
 
-			<motion.div variants={itemVariants} className="w-full max-w-full">
+			<div className="w-full max-w-full">
 				{isEditing ? (
 					<EditForm
 						paste={paste}
@@ -263,7 +235,7 @@ export default function PasteViewPage() {
 						</CardContent>
 					</Card>
 				)}
-			</motion.div>
+			</div>
 		</motion.div>
 	);
 }

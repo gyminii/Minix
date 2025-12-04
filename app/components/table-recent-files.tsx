@@ -1,25 +1,31 @@
 // components/TableRecentFiles.tsx
 "use client";
 
-import Link from "next/link";
+import { format } from "date-fns";
 import {
-	MoreHorizontal,
+	Archive,
+	ChevronRight,
+	Download,
 	File,
 	FileText,
 	Film,
-	Music,
-	Archive,
-	Trash2,
-	Download,
-	Share2,
-	ChevronRight,
 	ImageIcon,
 	Loader2,
+	MoreHorizontal,
+	Music,
+	Share2,
+	Trash2,
 } from "lucide-react";
-import { format } from "date-fns";
-import { motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardAction,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -27,6 +33,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -35,19 +42,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
-	useDashboardStats,
 	DASHBOARD_STATS_KEY,
+	useDashboardStats,
 } from "@/hooks/use-dashboard-stats";
 import type { RecentFile } from "@/lib/types/dashboard";
 
@@ -87,7 +86,6 @@ function getFileIcon(type: string) {
 
 export function TableRecentFiles() {
 	const queryClient = useQueryClient();
-	const prefersReducedMotion = useReducedMotion();
 
 	const { data, isLoading, error } = useDashboardStats();
 	const files: RecentFile[] = data?.recentFiles ?? [];
@@ -112,22 +110,9 @@ export function TableRecentFiles() {
 		try {
 			await deleteFileMutation.mutateAsync(fileId);
 		} catch (err) {
-			// eslint-disable-next-line no-console
 			console.error("Error deleting file:", err);
 		}
 	};
-
-	const tooManyRows = files.length >= 12;
-	const disableMotion = prefersReducedMotion || tooManyRows;
-
-	const CardWrapper = disableMotion ? "div" : motion.div;
-	const cardProps = disableMotion
-		? {}
-		: {
-				initial: { opacity: 0, y: 8 },
-				animate: { opacity: 1, y: 0 },
-				transition: { duration: 0.25, ease: "easeOut" },
-		  };
 
 	if (isLoading) {
 		return (
@@ -195,7 +180,7 @@ export function TableRecentFiles() {
 	}
 
 	return (
-		<CardWrapper {...cardProps}>
+		<div>
 			<Card>
 				<CardHeader className="relative">
 					<CardTitle>Recently Uploaded Files</CardTitle>
@@ -301,6 +286,6 @@ export function TableRecentFiles() {
 					</Table>
 				</CardContent>
 			</Card>
-		</CardWrapper>
+		</div>
 	);
 }

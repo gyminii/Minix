@@ -53,20 +53,6 @@ const containerVariants = {
 	},
 };
 
-const cardVariants = {
-	hidden: { opacity: 0, scale: 0.95, y: 20 },
-	show: {
-		opacity: 1,
-		scale: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-		},
-	},
-};
-
 export function FolderListCards() {
 	const { data, isLoading, refreshDashboardStats } = useDashboardStats();
 	const router = useRouter();
@@ -199,12 +185,7 @@ export function FolderListCards() {
 				animate="show"
 			>
 				{folders.map((folder, index) => (
-					<motion.div
-						key={folder.id}
-						variants={cardVariants}
-						custom={index}
-						layout
-					>
+					<motion.div key={folder.id} custom={index} layout>
 						<Card className="hover:bg-muted transition-colors">
 							<CardHeader>
 								<CardTitle className="flex gap-2">

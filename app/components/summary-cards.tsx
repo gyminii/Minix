@@ -24,20 +24,6 @@ const containerVariants = {
 	},
 };
 
-const cardVariants = {
-	hidden: { opacity: 0, scale: 0.95, y: 20 },
-	show: {
-		opacity: 1,
-		scale: 1,
-		y: 0,
-		transition: {
-			type: "spring",
-			stiffness: 260,
-			damping: 20,
-		},
-	},
-};
-
 export function SummaryCards() {
 	const { data, isLoading, error } = useDashboardStats();
 
@@ -67,7 +53,7 @@ export function SummaryCards() {
 			animate="show"
 		>
 			{/* Documents Card */}
-			<motion.div variants={cardVariants} layout>
+			<motion.div layout>
 				<Card>
 					<CardHeader>
 						<CardTitle>Documents</CardTitle>
@@ -95,7 +81,7 @@ export function SummaryCards() {
 			</motion.div>
 
 			{/* Images Card */}
-			<motion.div variants={cardVariants} layout>
+			<motion.div layout>
 				<Card>
 					<CardHeader>
 						<CardTitle>Images</CardTitle>
@@ -123,7 +109,7 @@ export function SummaryCards() {
 			</motion.div>
 
 			{/* Videos Card */}
-			<motion.div variants={cardVariants} layout>
+			<motion.div layout>
 				<Card>
 					<CardHeader>
 						<CardTitle>Videos</CardTitle>
@@ -151,7 +137,7 @@ export function SummaryCards() {
 			</motion.div>
 
 			{/* Others Card */}
-			<motion.div variants={cardVariants} layout>
+			<motion.div layout>
 				<Card>
 					<CardHeader>
 						<CardTitle>Others</CardTitle>
