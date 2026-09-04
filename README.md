@@ -1,6 +1,19 @@
 # Minix
 
-Personal cloud storage + code snippet manager. Think Google Drive meets Pastebin. Upload files, organize them in folders, save code snippets with syntax highlighting.
+Personal cloud storage + code snippet manager.
+Think Google Drive meets Pastebin.
+Upload files, organize them in folders, save code snippets with syntax highlighting.
+Live at [minix.minii.dev](https://minix.minii.dev), running on Cloudflare Workers.
+
+## Now on Cloudflare
+
+Minix migrated off Supabase to Cloudflare on 2026-09-04; it now runs on Cloudflare Workers via OpenNext.
+Auth moved from Supabase Auth to Clerk, using Google sign-in.
+File and folder metadata moved from Postgres to Cloudflare D1.
+File and paste bytes moved from Supabase Storage to Cloudflare R2.
+Realtime sync was dropped; the client now refetches on window focus and polls every 30 seconds instead.
+Signed URLs were replaced by token-based share links served directly by the Worker.
+See `scripts/migrate/README.md` for the export and import scripts used to move the data.
 
 ## Why I Built This
 
@@ -9,6 +22,8 @@ Wanted to test the Supabase hype. Everyone talks about it like it's magic, but a
 Also needed a place to dump code snippets that wasn't GitHub Gists (too slow) or Pastebin (ads everywhere).
 
 ## Tech Decisions
+
+The sections below describe the original 2025 build on Supabase.
 
 ### Supabase — The Honest Take
 
@@ -91,8 +106,10 @@ Expiring pastes were easy to add. A `expires_at` timestamp, and a cron job (Supa
 
 | What | Why |
 |------|-----|
-| Next.js 16 | App Router, server actions for mutations |
-| Supabase | Postgres + Auth + Storage + Realtime in one |
+| Next.js 16 on Cloudflare Workers (OpenNext) | App Router, server actions for mutations |
+| Clerk | Auth, Google sign-in |
+| Cloudflare D1 | File and folder metadata |
+| Cloudflare R2 | File and paste bytes |
 | TanStack Query | Server state, caching, optimistic updates |
 | Zustand | UI state without boilerplate |
 | Tailwind + shadcn/ui | Fast styling, accessible components |
