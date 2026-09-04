@@ -1,13 +1,4 @@
 // next.config.mjs
-import nextPWA from "next-pwa";
-
-const withPWA = nextPWA({
-	dest: "public",
-	disable: process.env.NODE_ENV === "development",
-	register: true,
-	skipWaiting: true,
-});
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	i18n: undefined,
@@ -17,4 +8,7 @@ const nextConfig = {
 	turbopack: {},
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;
+
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+initOpenNextCloudflareForDev();
