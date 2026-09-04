@@ -1,16 +1,20 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-	baseDirectory: __dirname,
-});
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-	...compat.extends("next/core-web-vitals", "next/typescript"),
+	{
+		ignores: [
+			".next/**",
+			".open-next/**",
+			".wrangler/**",
+			"out/**",
+			"node_modules/**",
+			"cloudflare-env.d.ts",
+		],
+	},
+
+	...nextCoreWebVitals,
+	...nextTypescript,
 
 	// Add an override for shadcn components
 	{

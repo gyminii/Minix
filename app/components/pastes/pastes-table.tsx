@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,14 +57,15 @@ export default function PastesTable({
 	const [folderId, setFolderId] = useState<string | null>(initialFolderId);
 
 	// Keep local state in sync if URL changes client-side
-	useEffect(() => {
+	const searchParamsKey = searchParams.toString();
+	const [prevSearchParamsKey, setPrevSearchParamsKey] =
+		useState(searchParamsKey);
+	if (searchParamsKey !== prevSearchParamsKey) {
+		setPrevSearchParamsKey(searchParamsKey);
 		const v = searchParams.get("view");
 		setView(v === "list" ? "list" : "cards");
-	}, [searchParams]);
-
-	useEffect(() => {
 		setFolderId(searchParams.get("folder") || null);
-	}, [searchParams]);
+	}
 
 	const { data: folders, isLoading: foldersLoading } = useFolders();
 	const {

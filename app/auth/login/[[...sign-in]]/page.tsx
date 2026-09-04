@@ -5,7 +5,9 @@ import type React from "react";
 import { SignIn } from "@clerk/nextjs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
 
 // Animated background blob component
 const AnimatedBlob = ({
@@ -94,7 +96,11 @@ const HoverIcon = ({
 };
 
 export default function Page() {
-	const [mounted, setMounted] = useState(false);
+	const mounted = useSyncExternalStore(
+		emptySubscribe,
+		() => true,
+		() => false
+	);
 	const isMobile = useIsMobile();
 	const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
@@ -115,11 +121,6 @@ export default function Page() {
 
 		// Clean up
 		return () => window.removeEventListener("resize", handleResize);
-	}, []);
-
-	// Prevent hydration mismatch
-	useEffect(() => {
-		setMounted(true);
 	}, []);
 
 	if (!mounted) {

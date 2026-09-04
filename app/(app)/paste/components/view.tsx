@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
@@ -54,10 +54,14 @@ export default function View({
 	const [view, setView] = useState<ViewMode>(initialView);
 	const [folderId, setFolderId] = useState<string | null>(initialFolderId);
 
-	useEffect(() => {
+	const searchParamsKey = searchParams.toString();
+	const [prevSearchParamsKey, setPrevSearchParamsKey] =
+		useState(searchParamsKey);
+	if (searchParamsKey !== prevSearchParamsKey) {
+		setPrevSearchParamsKey(searchParamsKey);
 		setView(searchParams.get("view") === "list" ? "list" : "cards");
 		setFolderId(searchParams.get("folder") || null);
-	}, [searchParams]);
+	}
 
 	// Data
 	const { data: folders, isLoading: foldersLoading } = useFolders();

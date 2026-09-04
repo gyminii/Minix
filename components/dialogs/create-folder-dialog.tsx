@@ -24,13 +24,39 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
-import React, { useCallback, useState } from "react";
+import React, { useState } from "react";
 
 const formSchema = z.object({
 	name: z.string().min(2, {
 		message: "Folder name is required",
 	}),
 });
+
+const CustomTrigger = ({
+	children,
+	onClick,
+}: {
+	children?: React.ReactNode;
+	onClick: (e: React.MouseEvent) => void;
+}) => {
+	if (children) {
+		return (
+			<div onClick={onClick} className="cursor-pointer">
+				{children}
+			</div>
+		);
+	}
+
+	return (
+		<Button
+			variant="outline"
+			className="gap-2 transition-all duration-200 hover:bg-primary/10"
+			onClick={onClick}
+		>
+			Create Folder
+		</Button>
+	);
+};
 
 const CreateFolderDialog = ({ children }: { children?: React.ReactNode }) => {
 	// Get the current folder ID from the URL params
@@ -72,35 +98,15 @@ const CreateFolderDialog = ({ children }: { children?: React.ReactNode }) => {
 
 	const onSubmit = (values: z.infer<typeof formSchema>) =>
 		createFolderMutate(values);
-	const CustomTrigger = useCallback(() => {
-		const handleClick = (e: React.MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			setOpen(true);
-		};
-
-		if (children) {
-			return (
-				<div onClick={handleClick} className="cursor-pointer">
-					{children}
-				</div>
-			);
-		}
-
-		return (
-			<Button
-				variant="outline"
-				className="gap-2 transition-all duration-200 hover:bg-primary/10"
-				onClick={handleClick}
-			>
-				Create Folder
-			</Button>
-		);
-	}, [children, setOpen]);
+	const handleTriggerClick = (e: React.MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setOpen(true);
+	};
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<CustomTrigger />
+				<CustomTrigger onClick={handleTriggerClick}>{children}</CustomTrigger>
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>
