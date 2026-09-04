@@ -15,7 +15,7 @@
 		{
 			"binding": "DB",
 			"database_name": "minix",
-			"database_id": "REPLACE_ME",
+			"database_id": "c2437e5e-0ac8-4de9-bb49-42d0d1c7c4e8",
 			"migrations_dir": "migrations"
 		}
 	],
