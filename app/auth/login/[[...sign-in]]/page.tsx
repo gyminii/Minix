@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { LoginForm } from "@/components/login-form";
+import { SignIn } from "@clerk/nextjs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -126,7 +126,7 @@ export default function Page() {
 		return (
 			<div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
 				<div className="w-full max-w-sm">
-					<LoginForm />
+					<SignIn path="/auth/login" routing="path" />
 				</div>
 			</div>
 		);
@@ -321,7 +321,7 @@ export default function Page() {
 									transition={{ delay: 0.4, duration: 0.5 }}
 									className="backdrop-blur-sm bg-card/80 rounded-xl border shadow-lg p-1 w-full hover:shadow-xl transition-shadow duration-300"
 								>
-									<LoginForm />
+									<SignIn path="/auth/login" routing="path" />
 								</motion.div>
 							</div>
 						</motion.div>

@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import { fontVariables } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "next-themes";
@@ -42,22 +43,27 @@ export default async function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
-			<body
-				suppressHydrationWarning
-				className={cn("bg-background group/layout font-poppins", fontVariables)}
-			>
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="light"
-					enableSystem
-					disableTransitionOnChange
+		<ClerkProvider>
+			<html lang="en" suppressHydrationWarning>
+				<body
+					suppressHydrationWarning
+					className={cn(
+						"bg-background group/layout font-poppins",
+						fontVariables
+					)}
 				>
-					<div className="pb-0 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
-						{children}
-					</div>
-				</ThemeProvider>
-			</body>
-		</html>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="light"
+						enableSystem
+						disableTransitionOnChange
+					>
+						<div className="pb-0 xl:group-data-[theme-content-layout=centered]/layout:container xl:group-data-[theme-content-layout=centered]/layout:mx-auto xl:group-data-[theme-content-layout=centered]/layout:mt-8">
+							{children}
+						</div>
+					</ThemeProvider>
+				</body>
+			</html>
+		</ClerkProvider>
 	);
 }

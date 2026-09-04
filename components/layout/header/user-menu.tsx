@@ -1,3 +1,5 @@
+"use client";
+
 import { LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,20 +10,21 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useGetCurrentUser } from "@/hooks/use-get-current-user";
-import { useLogout } from "@/hooks/use-logout";
+import { useClerk, useUser } from "@clerk/nextjs";
 
 export default function UserMenu() {
-	const user = useGetCurrentUser();
-	const { mutate: logout } = useLogout();
-	const avatarurl = user?.user_metadata.avatar_url;
+	const { user } = useUser();
+	const { signOut } = useClerk();
+	const name = user?.fullName ?? user?.username ?? "";
+	const email = user?.primaryEmailAddress?.emailAddress;
+	const avatarurl = user?.imageUrl;
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Avatar>
 					<AvatarImage src={avatarurl} alt="shadcn ui kit" />
 					<AvatarFallback className="rounded-lg">
-						{user?.user_metadata.name?.substring(0, 2)}
+						{name.substring(0, 2)}
 					</AvatarFallback>
 				</Avatar>
 			</DropdownMenuTrigger>
@@ -32,20 +35,15 @@ export default function UserMenu() {
 				<DropdownMenuLabel className="p-0">
 					<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 						<Avatar>
-							<AvatarImage
-								src={`${process.env.ASSETS_URL}/avatars/01.png`}
-								alt="shadcn ui kit"
-							/>
+							<AvatarImage src={avatarurl} alt="shadcn ui kit" />
 							<AvatarFallback className="rounded-lg">
-								{user?.user_metadata.name?.substring(0, 2)}
+								{name.substring(0, 2)}
 							</AvatarFallback>
 						</Avatar>
 						<div className="grid flex-1 text-left text-sm leading-tight">
-							<span className="truncate font-semibold">
-								{user?.user_metadata.name}
-							</span>
+							<span className="truncate font-semibold">{name}</span>
 							<span className="text-muted-foreground truncate text-xs">
-								{user?.email}
+								{email}
 							</span>
 						</div>
 					</div>
@@ -75,7 +73,7 @@ export default function UserMenu() {
 				<DropdownMenuSeparator /> */}
 				<DropdownMenuItem
 					onClick={() => {
-						logout();
+						void signOut({ redirectUrl: "/auth/login" });
 					}}
 				>
 					<LogOut />
