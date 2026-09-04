@@ -13,7 +13,6 @@ File and folder metadata moved from Postgres to Cloudflare D1.
 File and paste bytes moved from Supabase Storage to Cloudflare R2.
 Realtime sync was dropped; the client now refetches on window focus and polls every 30 seconds instead.
 Signed URLs were replaced by token-based share links served directly by the Worker.
-See `scripts/migrate/README.md` for the export and import scripts used to move the data.
 
 ## Why I Built This
 
