@@ -1,21 +1,29 @@
-import { createClient } from "@/lib/supabase/server";
-import { Folder } from "@/lib/types/type";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { getUserId } from "@/lib/auth";
+import { getBucket, getDb } from "@/lib/cf";
+import {
+	deleteFolder,
+	getFolder,
+	insertFolder,
+	listFolders,
+	listSubtreeFileKeys,
+	listSubtreePasteIds,
+} from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
 	try {
-		const client = await createClient();
-		const { data: userData, error: userError } = await client.auth.getUser();
-
-		if (userError || !userData?.user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		const body = await request.json();
+		const body = (await request.json()) as {
+			name?: string;
+			parent_id?: string | null;
+		};
 		const { name, parent_id } = body;
 
 		if (!name) {
@@ -25,23 +33,16 @@ export async function POST(request: Request) {
 			);
 		}
 
-		const folder = {
+		const db = await getDb();
+		const folder = await insertFolder(db, {
+			id: crypto.randomUUID(),
+			user_id: userId,
 			name,
-			user_id: userData.user.id,
-			parent_id: parent_id || null, // Handle parent_id which can be null
-		};
+			parent_id: parent_id || null,
+			created_at: new Date().toISOString(),
+		});
 
-		const { data, error } = await client
-			.from("folders")
-			.insert(folder)
-			.select();
-
-		if (error) throw error;
-
-		return NextResponse.json(
-			{ success: true, folder: data?.[0] },
-			{ status: 201 }
-		);
+		return NextResponse.json({ success: true, folder }, { status: 201 });
 	} catch (error) {
 		console.error("Folder creation error:", error);
 		return NextResponse.json(
@@ -50,19 +51,18 @@ export async function POST(request: Request) {
 		);
 	}
 }
+
 export async function DELETE(request: Request) {
 	try {
-		const client = await createClient();
-		const { data: userData, error: userError } = await client.auth.getUser();
-		if (userError || !userData?.user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
-		const userId = String(userData.user.id);
 
-		const body = await request.json();
+		const body = (await request.json()) as { folderIds?: string | string[] };
 		const { folderIds } = body;
 
 		// Validate input
@@ -76,19 +76,15 @@ export async function DELETE(request: Request) {
 		// Convert to array if single ID is provided
 		const folderIdsArray = Array.isArray(folderIds) ? folderIds : [folderIds];
 
+		const db = await getDb();
+		const bucket = await getBucket();
+
 		// Process each folder ID
 		const results = await Promise.all(
 			folderIdsArray.map(async (folderId: string) => {
 				try {
-					// Verify folder ownership
-					const { data: folderData, error: folderError } = await client
-						.from("folders")
-						.select("id")
-						.eq("id", folderId)
-						.eq("user_id", userId)
-						.single();
-
-					if (folderError || !folderData) {
+					const folder = await getFolder(db, userId, folderId);
+					if (!folder) {
 						return {
 							id: folderId,
 							success: false,
@@ -96,8 +92,16 @@ export async function DELETE(request: Request) {
 						};
 					}
 
-					// Recursively delete the folder and its contents
-					await recursivelyDeleteFolder(client, folderId, userId);
+					// The folder rows below cascade on delete, their stored objects do not
+					const keys = await listSubtreeFileKeys(db, userId, folderId);
+					const pasteIds = await listSubtreePasteIds(db, userId, folderId);
+					const objects = [
+						...keys,
+						...pasteIds.map((id) => `pastes/${id}.txt`),
+					];
+					if (objects.length > 0) await bucket.delete(objects);
+
+					await deleteFolder(db, userId, folderId);
 
 					return { id: folderId, success: true };
 				} catch (error) {
@@ -121,85 +125,27 @@ export async function DELETE(request: Request) {
 	}
 }
 
-// Recursive function to delete a folder and all its contents with proper types
-async function recursivelyDeleteFolder(
-	client: SupabaseClient,
-	folderId: string,
-	userId: string
-): Promise<void> {
-	// Step 1: Find all nested folders
-	const { data: nestedFolders } = (await client
-		.from("folders")
-		.select("id")
-		.eq("parent_id", folderId)) as { data: Pick<Folder, "id">[] | null };
-
-	// Step 2: Recursively delete each nested folder
-	if (nestedFolders && nestedFolders.length > 0) {
-		await Promise.all(
-			nestedFolders.map((folder) =>
-				recursivelyDeleteFolder(client, folder.id, userId)
-			)
-		);
-	}
-
-	// Step 3: Find all files in this folder
-	const { data: files } = await client
-		.from("files")
-		.select("id, path")
-		.eq("folder_id", folderId)
-		.eq("user_id", userId);
-	console.log("FILES TO DELETE ALONGSIDE: ", JSON.stringify(files, null, 4));
-	// Step 4: Delete all files from storage and database
-	if (files && files.length > 0) {
-		// Delete files from storage bucket
-		const filePaths = files
-			.map((file) => file.path)
-			.filter((path): path is string => path !== undefined);
-		console.log("FIle paths to delete", filePaths);
-		if (filePaths.length > 0) {
-			const { error: storageErrors, data } = await client.storage
-				.from("minix")
-				.remove(filePaths);
-			console.log(storageErrors, data);
-			if (storageErrors) {
-				console.log("Error deleting: ", storageErrors);
-			}
-		}
-
-		// Delete files from database
-		await client.from("files").delete().eq("folder_id", folderId);
-	}
-
-	// Step 5: Finally delete the folder itself
-	await client.from("folders").delete().eq("id", folderId);
-}
-
 export async function GET(_request: Request) {
 	try {
-		const client = await createClient();
-		const { data: userData, error: userError } = await client.auth.getUser();
-
-		if (userError || !userData?.user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		const { data: folders, error: foldersError } = await client
-			.from("folders")
-			.select("id, name, parent_id, created_at")
-			.eq("user_id", userData.user.id)
-			.order("name", { ascending: true });
+		const db = await getDb();
+		const folders = await listFolders(db, userId);
 
-		if (foldersError) {
-			return NextResponse.json(
-				{ error: "Failed to fetch folders" },
-				{ status: 500 }
-			);
-		}
-
-		return NextResponse.json(folders);
+		return NextResponse.json(
+			folders.map((f) => ({
+				id: f.id,
+				name: f.name,
+				parent_id: f.parent_id,
+				created_at: f.created_at,
+			}))
+		);
 	} catch (error) {
 		console.error("Folder fetch error:", error);
 		return NextResponse.json(

@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getDb } from "@/lib/cf";
+import { listChildFiles, listChildFolders } from "@/lib/db";
 import type { FileEntry, Folder } from "@/lib/types/type";
 import { NextResponse } from "next/server";
 
@@ -7,79 +9,33 @@ export async function GET(request: Request) {
 		const url = new URL(request.url);
 		const folderId = url.searchParams.get("folderId") || null;
 
-		const supabase = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError) {
-			return NextResponse.json(
-				{ error: "User not authenticated" },
-				{ status: 401 }
-			);
-		}
-		if (!user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		const userId = user.id;
-
-		const foldersQuery = supabase
-			.from("folders")
-			.select("id, name, created_at")
-			.eq("user_id", userId)
-			[folderId === null ? "is" : "eq"](
-				"parent_id",
-				folderId === null ? null : folderId
-			);
-
-		const filesQuery = supabase
-			.from("files")
-			.select("id, name, created_at, size, type, url")
-			.eq("user_id", userId)
-			[folderId === null ? "is" : "eq"](
-				"folder_id",
-				folderId === null ? null : folderId
-			);
-
-		const pastesQuery = supabase
-			.from("pastes")
-			.select("id, name, created_at, url")
-			.eq("user_id", userId)
-			[folderId === null ? "is" : "eq"](
-				"folder_id",
-				folderId === null ? null : folderId
-			);
-
-		const [foldersRes, filesRes, pastesRes] = await Promise.all([
-			foldersQuery,
-			filesQuery,
-			pastesQuery,
+		const db = await getDb();
+		const [folders, files] = await Promise.all([
+			listChildFolders(db, userId, folderId),
+			listChildFiles(db, userId, folderId),
 		]);
 
-		if (foldersRes.error || filesRes.error || pastesRes.error) {
-			return NextResponse.json(
-				{
-					error:
-						foldersRes.error?.message ||
-						filesRes.error?.message ||
-						pastesRes.error?.message,
-				},
-				{ status: 500 }
-			);
-		}
-
-		const folderEntries: Folder[] = foldersRes.data.map((f) => ({
-			...f,
+		const folderEntries: Folder[] = folders.map((f) => ({
+			id: f.id,
+			name: f.name,
+			created_at: f.created_at,
 			type: "folder",
 		}));
 
-		const fileEntries: FileEntry[] = filesRes.data.map((f) => ({
-			...f,
+		const fileEntries: FileEntry[] = files.map((f) => ({
+			id: f.id,
+			name: f.name,
+			created_at: f.created_at,
+			size: f.size,
+			url: `/api/files/${f.id}/raw`,
 			type: "file",
 		}));
 

@@ -1,22 +1,26 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getBucket, getDb } from "@/lib/cf";
+import { deletePaste, insertPaste, listPastes } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
 	try {
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		const { content, name, expiresAt, folderId, syntax } = await req.json();
+		const { content, name, expiresAt, folderId, syntax } =
+			(await req.json()) as {
+				content?: string;
+				name?: string;
+				expiresAt?: string | null;
+				folderId?: string | null;
+				syntax?: string;
+			};
 
 		if (!content) {
 			return NextResponse.json(
@@ -25,39 +29,30 @@ export async function POST(req: Request) {
 			);
 		}
 
+		const db = await getDb();
+		const now = new Date().toISOString();
+
 		// Create paste metadata first
-		const { data: pasteData, error: metaError } = await client
-			.from("pastes")
-			.insert({
-				name: name || "Untitled Paste",
-				user_id: user.id,
-				folder_id: folderId || null,
-				syntax: syntax || "plaintext",
-				expires_at: expiresAt || null,
-			})
-			.select()
-			.single();
+		const paste = await insertPaste(db, {
+			id: crypto.randomUUID(),
+			user_id: userId,
+			name: name || "Untitled Paste",
+			syntax: syntax || "plaintext",
+			folder_id: folderId || null,
+			expires_at: expiresAt || null,
+			created_at: now,
+			updated_at: now,
+		});
 
-		console.log("After paste creating", pasteData);
-		if (metaError) {
-			console.error("Error creating paste metadata:", metaError);
-			return NextResponse.json(
-				{ error: "Failed to create paste" },
-				{ status: 500 }
-			);
-		}
-
-		// Store the actual content in Supabase Storage
-		const pastePath = `pastes/${pasteData.name}.txt`;
-		const { error: storageError } = await client.storage
-			.from("minix")
-			.upload(pastePath, content, {
-				contentType: "text/plain",
-				upsert: true,
+		// Store the actual content in the bucket
+		try {
+			const bucket = await getBucket();
+			await bucket.put(`pastes/${paste.id}.txt`, content, {
+				httpMetadata: { contentType: "text/plain" },
 			});
-		if (storageError) {
+		} catch (storageError) {
 			console.error("Error storing paste content:", storageError);
-			await client.from("pastes").delete().eq("id", pasteData.id);
+			await deletePaste(db, paste.id);
 			return NextResponse.json(
 				{ error: "Failed to store paste content" },
 				{ status: 500 }
@@ -66,11 +61,11 @@ export async function POST(req: Request) {
 
 		return NextResponse.json(
 			{
-				id: pasteData.id,
-				name: pasteData.name,
-				syntax: pasteData.syntax,
-				expiresAt: pasteData.expires_at,
-				created_at: pasteData.created_at,
+				id: paste.id,
+				name: paste.name,
+				syntax: paste.syntax,
+				expiresAt: paste.expires_at,
+				created_at: paste.created_at,
 			},
 			{ status: 201 }
 		);
@@ -89,63 +84,34 @@ export async function GET(req: Request) {
 		const limit = Number.parseInt(url.searchParams.get("limit") || "10", 10);
 		const folderId = url.searchParams.get("folderId") || null;
 
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		let query = client
-			.from("pastes")
-			.select("id, name, syntax, folder_id, expires_at, created_at, url")
-			.eq("user_id", user.id)
-			.order("created_at", { ascending: false })
-			.limit(limit);
+		const db = await getDb();
+		const pastes = await listPastes(
+			db,
+			userId,
+			folderId,
+			limit,
+			new Date().toISOString()
+		);
 
-		if (folderId) {
-			query = query.eq("folder_id", folderId);
-		} else {
-			query = query.is("folder_id", null);
-		}
-
-		const { data: pastesData, error: pastesError } = await query;
-
-		if (pastesError) {
-			console.error("Error fetching pastes:", pastesError);
-			return NextResponse.json(
-				{ error: "Failed to fetch pastes" },
-				{ status: 500 }
-			);
-		}
-
-		if (!pastesData || pastesData.length === 0) {
-			return NextResponse.json([]);
-		}
-		const now = new Date();
-		const validPastes = pastesData
-			.filter((paste) => {
-				const expiresAt = paste.expires_at ? new Date(paste.expires_at) : null;
-				return !expiresAt || expiresAt > now;
-			})
-			.map((paste) => ({
+		return NextResponse.json(
+			pastes.map((paste) => ({
 				id: paste.id,
 				name: paste.name,
 				syntax: paste.syntax,
 				folder_id: paste.folder_id,
 				expires_at: paste.expires_at,
 				created_at: paste.created_at,
-				url: paste.url,
-			}));
-
-		console.log("Valid pastes found:", validPastes.length);
-		return NextResponse.json(validPastes);
+				url: null,
+			}))
+		);
 	} catch (error) {
 		console.error("Server error:", error);
 		return NextResponse.json(

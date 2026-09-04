@@ -55,7 +55,7 @@ export default function PasteViewPage() {
 						return;
 					}
 
-					const error = await response.json();
+					const error = (await response.json()) as { error?: string };
 					throw new Error(error.error || "Failed to fetch paste");
 				}
 

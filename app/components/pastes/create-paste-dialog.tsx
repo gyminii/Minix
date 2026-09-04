@@ -96,11 +96,11 @@ export default function CreatePasteDialog({ defaultFolderId = null }: Props) {
 			});
 
 			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
+				const err = (await res.json().catch(() => ({}))) as { error?: string };
 				throw new Error(err.error || "Failed to create paste");
 			}
 
-			const data = await res.json();
+			const data = (await res.json()) as { id: string };
 			toast.success("Paste created!");
 			setField("open", false);
 			resetForm();

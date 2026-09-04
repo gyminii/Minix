@@ -1,61 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
 import {
 	useQuery,
 	useQueryClient,
 	useMutation,
 	QueryKey,
 } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
 import type { DriveEntry, Folder } from "@/lib/types/type";
 import { toast } from "sonner";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-
-// ────────────────────────────────────────────────────────────────
-// Supabase realtime payload shapes (narrowed for our tables)
-// ────────────────────────────────────────────────────────────────
-type FolderPayload = {
-	id: string;
-	name: string;
-	created_at: string;
-	parent_id: string | null;
-	user_id: string;
-};
-
-type FilePayload = {
-	id: string;
-	name: string;
-	title?: string;
-	created_at: string;
-	size: number;
-	type: string;
-	folder_id: string | null;
-	user_id: string;
-	path?: string;
-	url?: string;
-};
 
 // ────────────────────────────────────────────────────────────────
 const DRIVE_KEY = (folderId: string | null) => ["drive", folderId] as const;
 const DRIVE_PREFIX: QueryKey = ["drive"];
-const DASHBOARD_STATS_KEY = ["dashboard-stats"] as const;
 const RECENT_FILES_KEY = ["recent-files"] as const;
 // ────────────────────────────────────────────────────────────────
 
 export function useDriveData(folderId: string | null) {
 	const queryClient = useQueryClient();
-	const supabase = createClient();
 
 	const invalidateDrive = () =>
 		queryClient.invalidateQueries({ queryKey: DRIVE_PREFIX, exact: false });
-
-	const invalidateAll = () =>
-		Promise.all([
-			invalidateDrive(),
-			queryClient.invalidateQueries({ queryKey: DASHBOARD_STATS_KEY }),
-			queryClient.invalidateQueries({ queryKey: RECENT_FILES_KEY }),
-		]);
 
 	const query = useQuery<DriveEntry[]>({
 		queryKey: DRIVE_KEY(folderId),
@@ -63,57 +27,13 @@ export function useDriveData(folderId: string | null) {
 			const url = folderId ? `/api/drive?folderId=${folderId}` : "/api/drive";
 			const res = await fetch(url, { signal });
 			if (!res.ok) throw new Error("Failed to fetch drive data");
-			return res.json();
+			return (await res.json()) as DriveEntry[];
 		},
 		staleTime: 10 * 60 * 1000,
 		gcTime: 30 * 60 * 1000,
+		refetchOnWindowFocus: true,
+		refetchInterval: 30_000,
 	});
-
-	useEffect(() => {
-		const channel = supabase
-			.channel("drive-changes")
-			.on(
-				"postgres_changes",
-				{ event: "*", schema: "public", table: "folders" },
-				(payload: RealtimePostgresChangesPayload<FolderPayload>) => {
-					void invalidateAll();
-					if (payload.eventType === "INSERT" && payload.new) {
-						toast.success(`Folder "${payload.new.name}" created`);
-					} else if (payload.eventType === "DELETE") {
-						toast.info("Folder deleted");
-					} else if (payload.eventType === "UPDATE" && payload.new) {
-						toast.info(`Folder "${payload.new.name}" updated`);
-					}
-				}
-			)
-			.on(
-				"postgres_changes",
-				{ event: "*", schema: "public", table: "files" },
-				(payload: RealtimePostgresChangesPayload<FilePayload>) => {
-					void invalidateAll();
-					if (payload.eventType === "INSERT" && payload.new) {
-						toast.success(`File "${payload.new.name}" uploaded`);
-					} else if (payload.eventType === "DELETE") {
-						toast.info("File deleted");
-					} else if (payload.eventType === "UPDATE" && payload.new) {
-						toast.info(`File "${payload.new.name}" updated`);
-					}
-				}
-			)
-			.subscribe((status) => {
-				if (status === "CHANNEL_ERROR") {
-					// keep UX-friendly messaging
-					toast.error(
-						"Real-time updates unavailable. Please refresh the page manually."
-					);
-				}
-			});
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [queryClient]); // avoid resubscribing when folderId changes
 
 	// ────────────────────────────────────────────────────────────────
 	// Mutations
@@ -127,12 +47,12 @@ export function useDriveData(folderId: string | null) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name, parent_id: folderId }),
 			});
-			const data: { error?: string; folder?: Folder } = await res.json();
+			const data = (await res.json()) as { error?: string; folder?: Folder };
 			if (!res.ok) throw new Error(data.error || "Failed to create folder");
 			return data.folder as Folder;
 		},
 		onSuccess: (newFolder) => {
-			// Immediate optimistic-feel update; realtime will also reconcile
+			// Immediate optimistic-feel update
 			queryClient.setQueryData<DriveEntry[]>(DRIVE_KEY(folderId), (old) => [
 				...(old ?? []),
 				{ ...(newFolder as Folder), type: "folder" } as DriveEntry,
@@ -153,7 +73,7 @@ export function useDriveData(folderId: string | null) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ folderIds: [id] }),
 			});
-			const data: { error?: string } = await res.json();
+			const data = (await res.json()) as { error?: string };
 			if (!res.ok) throw new Error(data.error || "Failed to delete folder");
 			return true;
 		},
@@ -183,7 +103,7 @@ export function useDriveData(folderId: string | null) {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ fileIds: [fileId] }),
 			});
-			const data: { error?: string } = await res.json();
+			const data = (await res.json()) as { error?: string };
 			if (!res.ok) throw new Error(data.error || "Failed to delete file");
 			return true;
 		},
@@ -222,7 +142,10 @@ export function useDriveData(folderId: string | null) {
 			if (folderIdToUse) formData.append("folder_id", folderIdToUse);
 
 			const res = await fetch("/api/files", { method: "POST", body: formData });
-			const result: { error?: string; files?: DriveEntry[] } = await res.json();
+			const result = (await res.json()) as {
+				error?: string;
+				files?: DriveEntry[];
+			};
 			if (!res.ok) throw new Error(result.error || "Upload failed");
 			return result;
 		},

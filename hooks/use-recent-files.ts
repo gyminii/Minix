@@ -2,8 +2,6 @@
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
-import { useEffect } from "react";
 
 export interface FileAttachment {
 	id: string;
@@ -18,7 +16,6 @@ export interface FileAttachment {
 }
 export function useRecentFiles(limit = 5) {
 	const queryClient = useQueryClient();
-	const supabase = createClient();
 
 	const query = useQuery<FileAttachment[]>({
 		queryKey: ["recent-files", limit],
@@ -27,31 +24,12 @@ export function useRecentFiles(limit = 5) {
 			if (!response.ok) {
 				throw new Error("Failed to fetch recent files");
 			}
-			return response.json();
+			return (await response.json()) as FileAttachment[];
 		},
 		staleTime: 1000 * 60, // 1 minute
+		refetchOnWindowFocus: true,
+		refetchInterval: 30_000,
 	});
-
-	useEffect(() => {
-		const channel = supabase
-			.channel("recent-files-changes")
-			.on(
-				"postgres_changes",
-				{
-					event: "*", // Listen to all events
-					schema: "public",
-					table: "files",
-				},
-				() => {
-					queryClient.invalidateQueries({ queryKey: ["recent-files"] });
-				}
-			)
-			.subscribe();
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	}, [queryClient, supabase]);
 
 	// Delete file mutation
 	const deleteFileMutation = useMutation({
@@ -65,7 +43,7 @@ export function useRecentFiles(limit = 5) {
 			});
 
 			if (!response.ok) {
-				const data = await response.json();
+				const data = (await response.json()) as { error?: string };
 				throw new Error(data.error || "Failed to delete file");
 			}
 

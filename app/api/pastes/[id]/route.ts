@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getBucket, getDb } from "@/lib/cf";
+import { deletePaste, getPaste, updatePaste } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Paste } from "@/lib/types/pastes";
 
@@ -15,20 +17,11 @@ export async function GET(
 			);
 		}
 
-		const client = await createClient();
-		const {
-			data: { user },
-		} = await client.auth.getUser();
+		const userId = await getUserId();
+		const db = await getDb();
+		const pasteData = await getPaste(db, id);
 
-		const { data: pasteData, error: pasteError } = await client
-			.from("pastes")
-			.select(
-				"id, name, syntax, folder_id, expires_at, user_id, created_at, url"
-			)
-			.eq("id", id)
-			.single();
-
-		if (pasteError || !pasteData) {
+		if (!pasteData) {
 			return NextResponse.json({ error: "Paste not found" }, { status: 404 });
 		}
 
@@ -42,27 +35,26 @@ export async function GET(
 			}
 		}
 
-		if (user && pasteData.user_id !== user.id) {
+		if (userId && pasteData.user_id !== userId) {
 			return NextResponse.json(
 				{ error: "You don't have permission to access this paste" },
 				{ status: 403 }
 			);
 		}
 
-		// Get the paste content from storage
-		const { data: contentData, error: contentError } = await client.storage
-			.from("minix")
-			.download(`pastes/${pasteData.name}.txt`);
+		// Get the paste content from the bucket
+		const bucket = await getBucket();
+		const object = await bucket.get(`pastes/${id}.txt`);
 
-		if (contentError) {
-			console.error("Error fetching paste content:", contentError);
+		if (!object) {
+			console.error("Error fetching paste content: object missing");
 			return NextResponse.json(
 				{ error: "Failed to fetch paste content" },
 				{ status: 500 }
 			);
 		}
 
-		const content = await contentData.text();
+		const content = await object.text();
 		const paste: Paste = {
 			id: pasteData.id,
 			name: pasteData.name,
@@ -72,7 +64,7 @@ export async function GET(
 			syntax: pasteData.syntax || "plaintext",
 			expires_at: pasteData.expires_at || null,
 			user_id: pasteData.user_id,
-			url: pasteData.url,
+			url: null,
 		};
 
 		return NextResponse.json(paste);
@@ -98,13 +90,8 @@ export async function PUT(
 			);
 		}
 
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
@@ -112,18 +99,15 @@ export async function PUT(
 		}
 
 		// Get the paste to check ownership
-		const { data: pasteData, error: pasteError } = await client
-			.from("pastes")
-			.select("id, user_id")
-			.eq("id", id)
-			.single();
+		const db = await getDb();
+		const pasteData = await getPaste(db, id);
 
-		if (pasteError || !pasteData) {
+		if (!pasteData) {
 			return NextResponse.json({ error: "Paste not found" }, { status: 404 });
 		}
 
 		// Check ownership
-		if (pasteData.user_id !== user.id) {
+		if (pasteData.user_id !== userId) {
 			return NextResponse.json(
 				{ error: "You don't have permission to update this paste" },
 				{ status: 403 }
@@ -131,47 +115,31 @@ export async function PUT(
 		}
 
 		// Get update data
-		const { content, name, expiresAt, folderId, syntax } = await request.json();
+		const { content, name, expiresAt, folderId, syntax } =
+			(await request.json()) as {
+				content?: string;
+				name?: string;
+				expiresAt?: string | null;
+				folderId?: string | null;
+				syntax?: string;
+			};
 
 		// Update paste metadata
-		const updateData: Record<string, unknown> = {};
+		const updateData: Record<string, string | null> = {};
 		if (name) updateData.name = name;
 		if (folderId !== undefined) updateData.folder_id = folderId;
 		if (syntax) updateData.syntax = syntax;
 		if (expiresAt !== undefined) updateData.expires_at = expiresAt;
 		updateData.updated_at = new Date().toISOString();
 
-		if (Object.keys(updateData).length > 0) {
-			const { error: metaUpdateError } = await client
-				.from("pastes")
-				.update(updateData)
-				.eq("id", id);
-
-			if (metaUpdateError) {
-				console.error("Error updating paste metadata:", metaUpdateError);
-				return NextResponse.json(
-					{ error: "Failed to update paste metadata" },
-					{ status: 500 }
-				);
-			}
-		}
+		await updatePaste(db, id, updateData);
 
 		// Update content if provided
 		if (content) {
-			const { error: storageError } = await client.storage
-				.from("minix")
-				.upload(`pastes/${id}.txt`, content, {
-					contentType: "text/plain",
-					upsert: true,
-				});
-
-			if (storageError) {
-				console.error("Error updating paste content:", storageError);
-				return NextResponse.json(
-					{ error: "Failed to update paste content" },
-					{ status: 500 }
-				);
-			}
+			const bucket = await getBucket();
+			await bucket.put(`pastes/${id}.txt`, content, {
+				httpMetadata: { contentType: "text/plain" },
+			});
 		}
 
 		return NextResponse.json({
@@ -200,13 +168,8 @@ export async function DELETE(
 			);
 		}
 
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
@@ -214,18 +177,15 @@ export async function DELETE(
 		}
 
 		// Get the paste to check ownership
-		const { data: pasteData, error: pasteError } = await client
-			.from("pastes")
-			.select("id, user_id")
-			.eq("id", id)
-			.single();
+		const db = await getDb();
+		const pasteData = await getPaste(db, id);
 
-		if (pasteError || !pasteData) {
+		if (!pasteData) {
 			return NextResponse.json({ error: "Paste not found" }, { status: 404 });
 		}
 
 		// Check ownership
-		if (pasteData.user_id !== user.id) {
+		if (pasteData.user_id !== userId) {
 			return NextResponse.json(
 				{ error: "You don't have permission to delete this paste" },
 				{ status: 403 }
@@ -233,25 +193,13 @@ export async function DELETE(
 		}
 
 		// Delete paste metadata
-		const { error: metaDeleteError } = await client
-			.from("pastes")
-			.delete()
-			.eq("id", id);
+		await deletePaste(db, id);
 
-		if (metaDeleteError) {
-			console.error("Error deleting paste metadata:", metaDeleteError);
-			return NextResponse.json(
-				{ error: "Failed to delete paste metadata" },
-				{ status: 500 }
-			);
-		}
-
-		// Delete content from storage
-		const { error: storageError } = await client.storage
-			.from("minix")
-			.remove([`pastes/${id}.txt`]);
-
-		if (storageError) {
+		// Delete content from the bucket
+		try {
+			const bucket = await getBucket();
+			await bucket.delete(`pastes/${id}.txt`);
+		} catch (storageError) {
 			console.error("Error deleting paste content:", storageError);
 			// Continue with deletion even if storage removal fails
 		}

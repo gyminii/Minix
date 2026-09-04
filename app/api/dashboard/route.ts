@@ -1,5 +1,7 @@
 // app/api/dashboard/route.ts
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getDb } from "@/lib/cf";
+import { listAllFiles, listFolders, listRecentFiles } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 const FILE_TYPES = {
@@ -39,97 +41,34 @@ const FILE_TYPES = {
 };
 
 const TOTAL_STORAGE_GB = Number(process.env.TOTAL_STORAGE_GB || 25); // e.g., 25 GB
-const BUCKET_NAME = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || "minix";
 
 export async function GET() {
 	try {
-		const client = await createClient();
-		const { data: userData, error: userError } = await client.auth.getUser();
-		if (userError || !userData?.user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
-		const userId = userData.user.id;
 
-		// Files for stats (bytes kept)
-		const { data: files, error: filesError } = await client
-			.from("files")
-			.select("id, name, size, type, folder_id, created_at")
-			.eq("user_id", userId);
+		const db = await getDb();
 
-		if (filesError) {
-			return NextResponse.json(
-				{ error: "Failed to fetch files" },
-				{ status: 500 }
-			);
-		}
+		// Files for stats (bytes kept), folders for folder cards, top 5 most recent files
+		const [files, folders, recentFilesRaw] = await Promise.all([
+			listAllFiles(db, userId),
+			listFolders(db, userId),
+			listRecentFiles(db, userId, 5),
+		]);
 
-		// Folders for folder cards
-		const { data: folders, error: foldersError } = await client
-			.from("folders")
-			.select("id, name, created_at, parent_id")
-			.eq("user_id", userId);
-
-		if (foldersError) {
-			return NextResponse.json(
-				{ error: "Failed to fetch folders" },
-				{ status: 500 }
-			);
-		}
-
-		// Top 5 most recent files
-		const { data: recentFilesRaw } = await client
-			.from("files")
-			.select("id, name, size, type, created_at, url, path")
-			.eq("user_id", userId)
-			.order("created_at", { ascending: false })
-			.limit(5);
-
-		let bucketInfo: { name: string; id: string; public: boolean } | null = null;
-		try {
-			const { data: bucketData, error: bucketErr } =
-				await client.storage.getBucket(BUCKET_NAME);
-			if (!bucketErr && bucketData) {
-				bucketInfo = {
-					name: bucketData.name,
-					id: bucketData.id,
-					public: bucketData.public,
-				};
-			}
-		} catch {}
-		const recentFiles =
-			(await Promise.all(
-				(recentFilesRaw ?? []).map(async (f) => {
-					let url: string | null = f.url ?? null;
-
-					if (!url && f.path) {
-						const fromBucket = client.storage.from(BUCKET_NAME);
-						try {
-							if (bucketInfo?.public) {
-								const { data } = fromBucket.getPublicUrl(f.path);
-								url = data.publicUrl ?? null;
-							} else {
-								const { data, error } = await fromBucket.createSignedUrl(
-									f.path,
-									60
-								);
-								if (!error) url = data.signedUrl ?? null;
-							}
-						} catch {}
-					}
-
-					return {
-						id: f.id,
-						name: f.name,
-						size: f.size ?? 0,
-						type: f.type ?? "application/octet-stream",
-						created_at: f.created_at,
-						url,
-					};
-				})
-			)) || [];
+		const recentFiles = recentFilesRaw.map((f) => ({
+			id: f.id,
+			name: f.name,
+			size: f.size ?? 0,
+			type: f.type ?? "application/octet-stream",
+			created_at: f.created_at,
+			url: `/api/files/${f.id}/raw`,
+		}));
 
 		const emptyCat = () => ({ count: 0, size: 0, sizeGB: 0, percentage: 0 });
 		const stats = {
@@ -242,7 +181,6 @@ export async function GET() {
 			stats,
 			folderStats,
 			storageInfo,
-			bucketInfo,
 			recentFiles,
 		});
 	} catch (error) {

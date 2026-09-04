@@ -1,8 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getDb } from "@/lib/cf";
+import { getPaste, insertShare } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+const SHARE_TTL_SECONDS = 604800;
+
+const createToken = () => {
+	const random = crypto.getRandomValues(new Uint8Array(16));
+	const suffix = Array.from(random, (byte) =>
+		byte.toString(16).padStart(2, "0")
+	).join("");
+	return `${crypto.randomUUID().replaceAll("-", "")}${suffix}`;
+};
+
 export async function POST(
-	_req: Request,
+	req: Request,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
 	try {
@@ -15,65 +27,40 @@ export async function POST(
 			);
 		}
 
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
-		const { data: paste, error: pasteError } = await client
-			.from("pastes")
-			.select("id, user_id")
-			.eq("id", id)
-			.single();
 
-		if (pasteError) {
-			return NextResponse.json(
-				{ error: "Failed to fetch paste" },
-				{ status: 500 }
-			);
-		}
+		const db = await getDb();
+		const paste = await getPaste(db, id);
 
 		if (!paste) {
 			return NextResponse.json({ error: "Paste not found" }, { status: 404 });
 		}
 
-		if (paste.user_id !== user.id) {
+		if (paste.user_id !== userId) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 		}
 
-		const pastePath = `pastes/${id}.txt`;
-		const { data: signedUrlData, error: signedUrlError } = await client.storage
-			.from("minix")
-			.createSignedUrl(pastePath, 604800);
+		const expiresAt = new Date(
+			Date.now() + SHARE_TTL_SECONDS * 1000
+		).toISOString();
+		const share = await insertShare(db, {
+			token: createToken(),
+			user_id: userId,
+			kind: "paste",
+			target_id: id,
+			expires_at: expiresAt,
+			created_at: new Date().toISOString(),
+		});
 
-		if (signedUrlError) {
-			console.error("Error generating signed URL:", signedUrlError);
-			return NextResponse.json(
-				{ error: "Failed to generate signed URL" },
-				{ status: 500 }
-			);
-		}
-		const { error: updateError } = await client
-			.from("pastes")
-			.update({ url: signedUrlData.signedUrl })
-			.eq("id", id);
-		if (updateError) {
-			console.error("Error updating paste URL:", updateError);
-			return NextResponse.json(
-				{ error: "Failed to update paste URL" },
-				{ status: 500 }
-			);
-		}
 		return NextResponse.json({
-			signedUrl: signedUrlData.signedUrl,
-			expiresAt: new Date(Date.now() + 604800 * 1000).toISOString(),
+			signedUrl: `${new URL(req.url).origin}/s/${share.token}`,
+			expiresAt,
 		});
 	} catch (error) {
 		console.error("Server error:", error);

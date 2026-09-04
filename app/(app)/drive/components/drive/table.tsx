@@ -130,9 +130,11 @@ export default function Table({
 			if (entry.type === "folder") {
 				const response = await fetch(`/api/folders/${entry.id}/download`);
 				if (!response.ok) {
-					const errorData = await response
+					const errorData = (await response
 						.json()
-						.catch(() => ({ error: "Download failed" }));
+						.catch(() => ({ error: "Download failed" }))) as {
+						error?: string;
+					};
 					throw new Error(errorData.error || "Failed to download folder");
 				}
 				const contentDisposition = response.headers.get("Content-Disposition");

@@ -1,7 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getDb } from "@/lib/cf";
+import { getFileByKey, getFileById } from "@/lib/db";
 import { NextResponse } from "next/server";
 
-const BUCKET = process.env.NEXT_PUBLIC_SUPABASE_BUCKET || "minix";
 const DEFAULT_TTL_SECONDS = 60; // 1 minute link
 
 type DownloadBody =
@@ -25,16 +26,12 @@ function hasPath(
 
 export async function POST(req: Request) {
 	try {
-		const supabase = await createClient();
-		const {
-			data: { user },
-			error: userErr,
-		} = await supabase.auth.getUser();
-		if (userErr || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		const body: DownloadBody = await req.json();
+		const body = (await req.json()) as DownloadBody;
 		const ttlSeconds =
 			"ttlSeconds" in body && typeof body.ttlSeconds === "number"
 				? body.ttlSeconds
@@ -42,39 +39,32 @@ export async function POST(req: Request) {
 		const ttl = Math.max(10, Math.min(60 * 60, ttlSeconds)); // clamp 10s..1h
 		const redirect = "redirect" in body ? Boolean(body.redirect) : false;
 
-		let path: string | null = null;
+		const db = await getDb();
+
+		let id: string | null = null;
 		let filename: string | null = null;
 
 		if (hasId(body)) {
-			const { data, error } = await supabase
-				.from("files")
-				.select("path, name, user_id")
-				.eq("id", body.id)
-				.single();
+			const file = await getFileById(db, body.id);
 
-			if (error || !data) {
+			if (!file) {
 				return NextResponse.json({ error: "File not found" }, { status: 404 });
 			}
-			if (data.user_id !== user.id) {
+			if (file.user_id !== userId) {
 				return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 			}
 
-			path = data.path;
-			filename = data.name ?? null;
+			id = file.id;
+			filename = file.name;
 		} else if (hasPath(body)) {
-			const { data, error } = await supabase
-				.from("files")
-				.select("path, name, user_id")
-				.eq("path", body.path)
-				.eq("user_id", user.id)
-				.single();
+			const file = await getFileByKey(db, userId, body.path);
 
-			if (error || !data) {
+			if (!file) {
 				return NextResponse.json({ error: "File not found" }, { status: 404 });
 			}
 
-			path = data.path;
-			filename = data.name ?? null;
+			id = file.id;
+			filename = file.name;
 		} else {
 			return NextResponse.json(
 				{ error: "Invalid request body" },
@@ -82,33 +72,14 @@ export async function POST(req: Request) {
 			);
 		}
 
-		if (!path) {
-			return NextResponse.json(
-				{ error: "No path available for file" },
-				{ status: 400 }
-			);
-		}
-
-		// Create a signed URL
-		const { data: signed, error: signErr } = await supabase.storage
-			.from(BUCKET)
-			.createSignedUrl(path, ttl, {
-				download: filename ?? undefined,
-			});
-
-		if (signErr || !signed?.signedUrl) {
-			return NextResponse.json(
-				{ error: "Could not sign URL" },
-				{ status: 500 }
-			);
-		}
+		const url = `/api/files/${id}/raw?download=1`;
 
 		if (redirect) {
-			return NextResponse.redirect(signed.signedUrl, { status: 302 });
+			return NextResponse.redirect(new URL(url, req.url), { status: 302 });
 		}
 
 		return NextResponse.json({
-			url: signed.signedUrl,
+			url,
 			expiresIn: ttl,
 			filename: filename ?? undefined,
 		});

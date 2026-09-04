@@ -1,5 +1,4 @@
 "use client";
-import { createClient } from "../supabase/client";
 import type { Folder } from "../types/type";
 
 /**
@@ -12,29 +11,8 @@ export const getFolderPath = async (
 ): Promise<Folder[]> => {
 	if (!folderId) return [];
 
-	const supabase = createClient();
-	const path: Folder[] = [];
+	const res = await fetch(`/api/folders/${folderId}/path`);
+	if (!res.ok) return [];
 
-	let currentId = folderId;
-
-	while (currentId) {
-		const { data, error } = await supabase
-			.from("folders")
-			.select("id, name, created_at, parent_id")
-			.eq("id", currentId)
-			.single();
-
-		if (error || !data) break;
-
-		path.unshift({
-			id: data.id,
-			name: data.name,
-			created_at: data.created_at,
-			type: "folder",
-		});
-
-		currentId = data.parent_id;
-	}
-
-	return path;
+	return (await res.json()) as Folder[];
 };

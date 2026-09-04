@@ -58,7 +58,7 @@ const CreateFolderDialog = ({ children }: { children?: React.ReactNode }) => {
 					parent_id: folderId,
 				}),
 			});
-			const result = await res.json();
+			const result = (await res.json()) as { error?: string };
 			if (!res.ok) {
 				throw new Error(result.error || "Unknown error");
 			}

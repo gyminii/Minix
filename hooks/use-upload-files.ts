@@ -19,7 +19,7 @@ export function useUploadFiles() {
 				method: "POST",
 				body: formData,
 			});
-			const result = await res.json();
+			const result = (await res.json()) as { error?: string };
 			if (!res.ok) {
 				console.error("Upload failed:", result);
 				throw new Error(result.error || "Upload failed");

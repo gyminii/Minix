@@ -74,11 +74,11 @@ export function ShareDialog({
 			});
 
 			if (!response.ok) {
-				const error = await response.json();
+				const error = (await response.json()) as { error?: string };
 				throw new Error(error.error || "Failed to generate new URL");
 			}
 
-			const data = await response.json();
+			const data = (await response.json()) as { signedUrl: string };
 			setSignedUrl(data.signedUrl);
 			toast.success("New content URL generated!");
 		} catch (error) {

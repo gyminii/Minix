@@ -19,15 +19,6 @@ export type StorageInfo = {
 	percentage: number;
 };
 
-export type BucketInfo = {
-	name: string;
-	id: string;
-	public: boolean;
-	owner?: string;
-	created_at?: string;
-	updated_at?: string;
-};
-
 export type RecentFile = {
 	id: string;
 	name: string;
@@ -47,7 +38,5 @@ export type DashboardStats = {
 	};
 	folderStats: FolderStat[];
 	storageInfo: StorageInfo;
-	bucketInfo?: BucketInfo | null;
-
 	recentFiles: RecentFile[];
 };

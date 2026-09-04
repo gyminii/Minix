@@ -1,17 +1,24 @@
-import { createClient } from "@/lib/supabase/server";
+import { getUserId } from "@/lib/auth";
+import { getBucket, getDb } from "@/lib/cf";
+import {
+	deleteFilesByIds,
+	insertFile,
+	listFilesByIds,
+	listRecentFiles,
+	listRecentPastes,
+} from "@/lib/db";
 import { NextResponse } from "next/server";
+
+type Upload =
+	| { name: string; url: string; error?: undefined }
+	| { name: string; error: string; url?: undefined };
 
 export async function POST(req: Request) {
 	try {
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
-				{ error: "User not authenticated", message: authError?.message },
+				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
@@ -24,9 +31,12 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
 		}
 
+		const db = await getDb();
+		const bucket = await getBucket();
+
 		// Process uploads
-		const uploads = await Promise.all(
-			files.map(async (file) => {
+		const uploads: Upload[] = await Promise.all(
+			files.map(async (file): Promise<Upload> => {
 				try {
 					// Handling Invalid file names
 					if (!file.name || file.name === "undefined") {
@@ -36,64 +46,28 @@ export async function POST(req: Request) {
 						};
 					}
 
-					// Update the file path to include the "files" folder
-					const filePath = `files/${Date.now()}-${file.name}`;
+					const id = crypto.randomUUID();
+					const key = `files/${id}/${file.name}`;
+					const type = file.type || "application/octet-stream";
 
-					// Upload file to Supabase Storage in the "files" folder
-					const { error: uploadError } = await client.storage
-						.from("minix")
-						.upload(filePath, file, {
-							cacheControl: "3600",
-							upsert: false,
-						});
+					await bucket.put(key, await file.arrayBuffer(), {
+						httpMetadata: { contentType: type },
+					});
 
-					if (uploadError) {
-						console.error("Upload error:", uploadError);
-						return {
-							error: uploadError.message,
-							name: file.name,
-						};
-					}
-
-					// Get public URL for the uploaded file
-					const { data } = await client.storage
-						.from("minix")
-						.createSignedUrl(filePath, 604800);
-					console.log(filePath);
-					// Insert file metadata into database
-					const { data: fileData, error: dbError } = await client
-						.from("files")
-						.insert({
-							name: file.name,
-							path: filePath,
-							size: file.size,
-							type: file.type,
-							folder_id: folderId,
-							user_id: user.id,
-							url: data ? data.signedUrl : null,
-						})
-						.select()
-						.single();
-
-					if (dbError) {
-						console.error("Database error:", dbError);
-						return {
-							error: dbError.message,
-							name: file.name,
-						};
-					}
-
-					// Return complete metadata object
-					return {
-						...fileData,
+					const now = new Date().toISOString();
+					await insertFile(db, {
+						id,
+						user_id: userId,
 						name: file.name,
-						path: filePath,
+						key,
 						size: file.size,
-						type: file.type,
+						type,
 						folder_id: folderId || null,
-						user_id: user.id,
-						url: data ? data.signedUrl : null,
-					};
+						created_at: now,
+						updated_at: now,
+					});
+
+					return { name: file.name, url: `/api/files/${id}/raw` };
 				} catch (err) {
 					console.error("Error processing file:", err);
 					return {
@@ -104,18 +78,8 @@ export async function POST(req: Request) {
 			})
 		);
 
-		// Properly filter successful uploads
-		const successful = uploads.filter(
-			(upload) =>
-				!upload.error &&
-				upload.name &&
-				upload.path &&
-				upload.size &&
-				upload.type &&
-				upload.user_id
-		);
-
-		const failed = uploads.filter((upload) => upload.error || !upload.name);
+		const successful = uploads.filter((upload) => !upload.error);
+		const failed = uploads.filter((upload) => upload.error);
 
 		if (successful.length > 0 && failed.length > 0) {
 			// Partial success case
@@ -134,27 +98,6 @@ export async function POST(req: Request) {
 				{ status: 207 } // Multi-Status
 			);
 		} else if (successful.length > 0) {
-			// Complete success
-			console.log(
-				`API: Successfully uploaded ${successful.length} files to folder: ${
-					folderId || "root"
-				}`
-			);
-
-			// Add a longer delay to ensure Supabase has time to process the changes
-			await new Promise((resolve) => setTimeout(resolve, 500));
-
-			// Manually trigger a database update to ensure realtime events fire
-			// This is a workaround for cases where realtime events might not be triggered properly
-			for (const file of successful) {
-				// Update the file's updated_at timestamp to trigger a realtime event
-				await client
-					.from("files")
-					.update({ updated_at: new Date().toISOString() })
-					.eq("path", file.path)
-					.eq("user_id", user.id);
-			}
-
 			return NextResponse.json({
 				success: successful.map((f) => ({ name: f.name, url: f.url })),
 				failed: [],
@@ -182,7 +125,7 @@ export async function POST(req: Request) {
 }
 export async function DELETE(req: Request) {
 	try {
-		const { fileIds } = await req.json();
+		const { fileIds } = (await req.json()) as { fileIds?: string[] };
 
 		if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
 			return NextResponse.json(
@@ -191,32 +134,15 @@ export async function DELETE(req: Request) {
 			);
 		}
 
-		const supabase = await createClient();
-
-		const {
-			data: { user },
-			error: userError,
-		} = await supabase.auth.getUser();
-
-		if (userError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
-		const userId = String(user.id);
-		const { data: filesToDelete, error: fetchError } = await supabase
-			.from("files")
-			.select("id, path, name")
-			.in("id", fileIds)
-			.eq("user_id", userId);
 
-		if (fetchError) {
-			console.error("Error fetching files to delete:", fetchError);
-			return NextResponse.json(
-				{ error: "Failed to fetch files", details: fetchError.message },
-				{ status: 500 }
-			);
-		}
+		const db = await getDb();
+		const filesToDelete = await listFilesByIds(db, userId, fileIds);
 
-		if (!filesToDelete || filesToDelete.length === 0) {
+		if (filesToDelete.length === 0) {
 			return NextResponse.json(
 				{
 					error:
@@ -232,55 +158,29 @@ export async function DELETE(req: Request) {
 			);
 		}
 
-		const storageResults = [];
+		const bucket = await getBucket();
 		const storageErrors = [];
 
 		for (const file of filesToDelete) {
-			if (file.path) {
-				const { error: storageError } = await supabase.storage
-					.from("minix")
-					.remove([file.path]);
-				if (storageError) {
-					console.error(
-						`Error deleting file ${file.id} from storage:`,
-						storageError
-					);
-					storageErrors.push({
-						id: file.id,
-						name: file.name,
-						error: storageError.message,
-					});
-				} else {
-					storageResults.push({
-						id: file.id,
-						name: file.name,
-						path: file.path,
-					});
-				}
+			try {
+				await bucket.delete(file.key);
+			} catch (storageError) {
+				console.error(
+					`Error deleting file ${file.id} from storage:`,
+					storageError
+				);
+				storageErrors.push({
+					id: file.id,
+					name: file.name,
+					error: String(storageError),
+				});
 			}
 		}
 
-		const { error: deleteError } = await supabase
-			.from("files")
-			.delete()
-			.in(
-				"id",
-				filesToDelete.map((file) => file.id)
-			);
-
-		if (deleteError) {
-			console.error("Error deleting files from database:", deleteError);
-			return NextResponse.json(
-				{
-					error: "Failed to delete files from database",
-					details: deleteError.message,
-					storageResults:
-						storageResults.length > 0 ? storageResults : undefined,
-					storageErrors: storageErrors.length > 0 ? storageErrors : undefined,
-				},
-				{ status: 500 }
-			);
-		}
+		await deleteFilesByIds(
+			db,
+			filesToDelete.map((file) => file.id)
+		);
 
 		// Return success response with details
 		return NextResponse.json({
@@ -308,55 +208,24 @@ export async function GET(req: Request) {
 		const url = new URL(req.url);
 		const limit = Number.parseInt(url.searchParams.get("limit") || "5", 10);
 
-		const client = await createClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await client.auth.getUser();
-
-		if (authError || !user) {
+		const userId = await getUserId();
+		if (!userId) {
 			return NextResponse.json(
 				{ error: "User not authenticated" },
 				{ status: 401 }
 			);
 		}
 
-		const { data: fileItems, error: filesError } = await client
-			.from("files")
-			.select("*")
-			.eq("user_id", user.id)
-			.order("created_at", { ascending: false })
-			.limit(limit);
+		const db = await getDb();
+		const [fileItems, pasteItems] = await Promise.all([
+			listRecentFiles(db, userId, limit),
+			listRecentPastes(db, userId, limit),
+		]);
 
-		const { data: pasteItems, error: pastesError } = await client
-			.from("pastes")
-			.select("*")
-			.eq("user_id", user.id)
-			.order("created_at", { ascending: false })
-			.limit(limit);
-		if (filesError || pastesError) {
-			return NextResponse.json(
-				{ error: "Failed to fetch files or pastes" },
-				{ status: 500 }
-			);
-		}
-		const files = [...fileItems, ...pasteItems];
-		const filesWithUrls = await Promise.all(
-			files.map(async (file) => {
-				if (file.path) {
-					const { data } = await client.storage
-						.from("minix")
-						.createSignedUrl(file.path, 3600); // 1 hour expiry
-					return {
-						...file,
-						url: data?.signedUrl || null,
-					};
-				}
-				return file;
-			})
-		);
-
-		return NextResponse.json(filesWithUrls);
+		return NextResponse.json([
+			...fileItems.map((f) => ({ ...f, url: `/api/files/${f.id}/raw` })),
+			...pasteItems.map((p) => ({ ...p, url: null })),
+		]);
 	} catch (error) {
 		console.error("Server error:", error);
 		return NextResponse.json(
