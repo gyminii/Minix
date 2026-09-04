@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "cf:build": "opennextjs-cloudflare build && node scripts/strip-baked-env.mjs",
+    "cf:build": "bun run cf:types && opennextjs-cloudflare build && node scripts/strip-baked-env.mjs",
     "cf:preview": "opennextjs-cloudflare build && node scripts/strip-baked-env.mjs && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && node scripts/strip-baked-env.mjs && opennextjs-cloudflare deploy",
     "cf:types": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
